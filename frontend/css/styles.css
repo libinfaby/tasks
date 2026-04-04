@@ -1,0 +1,1582 @@
+/* ============================================================
+   Tasks — IBM Carbon Design System Theme (Gray 100 Dark)
+   ============================================================ */
+
+/* IBM Plex Sans — IBM's official typeface */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+
+/* ==================== CSS Variables ==================== */
+:root {
+  /* ---- Carbon Gray 100 Dark Theme Tokens ---- */
+
+  /* Background layers (Carbon: $background → $layer-01 → $layer-02 → $layer-03) */
+--bg-primary:     #0d0d0d;   /* near-black background */
+--bg-secondary:   #161616;   /* subtle elevation */
+--bg-tertiary:    #1f1f1f;   /* higher layer */
+--bg-card:        #161616;
+--bg-card-hover:  #202020;
+--bg-glass:       rgba(255, 255, 255, 0.03);
+--bg-glass-hover: rgba(255, 255, 255, 0.06);
+--bg-input:       #141414;
+--bg-input-focus: #1a1a1a;
+
+  /* Borders (Carbon: $border-subtle, $border-strong, $focus) */
+  --border-color:       #393939;  /* border-subtle-01 */
+  --border-color-hover: #525252;  /* border-strong-01 */
+  --border-color-focus: #0f62fe;  /* focus */
+
+  /* Text tokens */
+  --text-primary:   #f4f4f4;  /* text-primary */
+  --text-secondary: #c6c6c6;  /* text-secondary */
+  --text-tertiary:  #8d8d8d;  /* text-placeholder */
+  --text-inverse:   #161616;  /* text-inverse */
+
+  /* Carbon Blue accent (Interactive / $interactive) */
+  --accent:          #0f62fe;  /* interactive */
+  --accent-hover:    #0353e9;  /* interactive-hover (Blue 70) */
+  --accent-glow:     rgba(15, 98, 254, 0.16);
+  --accent-gradient: linear-gradient(135deg, #0f62fe 0%, #0043ce 100%);
+
+  /* Priority / Severity — Carbon uses semantic alert colors */
+  --priority-urgent:    #fa4d56;   /* $support-error */
+  --priority-urgent-bg: rgba(250, 77, 86, 0.10);
+  --priority-high:      #f1c21b;   /* $support-warning */
+  --priority-high-bg:   rgba(241, 194, 27, 0.10);
+  --priority-normal:    #0f62fe;
+
+  /* Status */
+  --success:    #42be65;  /* $support-success */
+  --success-bg: rgba(66, 190, 101, 0.10);
+  --warning:    #f1c21b;  /* $support-warning */
+  --danger:     #fa4d56;  /* $support-error */
+  --danger-bg:  rgba(250, 77, 86, 0.10);
+
+  /* Carbon 8px base unit spacing */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+  --space-2xl: 48px;
+
+  /* Carbon uses SHARP corners (0 or 2px max) — no rounded pills */
+  --radius-sm:   0px;
+  --radius-md:   0px;
+  --radius-lg:   0px;
+  --radius-xl:   0px;
+  --radius-full: 0px;   /* Carbon uses square chips, not pill-shaped */
+
+  /* Shadows: Carbon uses very subtle, directional drop shadows */
+  --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md:  0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg:  0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-glow:0 0 0 3px var(--accent-glow);
+
+  /* Transitions: Carbon keeps motion purposeful and fast */
+  --transition-fast:   70ms  cubic-bezier(0.2, 0, 0.38, 0.9);
+  --transition-normal: 150ms cubic-bezier(0.2, 0, 0.38, 0.9);
+  --transition-slow:   240ms cubic-bezier(0.2, 0, 0.38, 0.9);
+
+  /* Layout */
+  --sidebar-width:      256px;   /* Carbon standard side-nav width */
+  --header-height:      48px;    /* Carbon shell header height */
+  --max-content-width:  900px;
+}
+
+/* ==================== Reset & Base ==================== */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 400;
+  font-size: 0.875rem;       /* Carbon body-short-01: 14px */
+  line-height: 1.428571429;  /* Carbon: 20px / 14px */
+  letter-spacing: 0.16px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Carbon uses no ambient decorative backgrounds — just flat surfaces */
+body::before { display: none; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+  color: inherit;
+  letter-spacing: 0.16px;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  outline: none;
+  border: none;
+  background: none;
+  letter-spacing: 0.16px;
+}
+
+/* Scrollbar — thin, Carbon-style */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: #525252; }
+::-webkit-scrollbar-thumb:hover { background: #6f6f6f; }
+
+/* ==================== Animations ==================== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Carbon checkbox uses a simple fill, no bounce */
+@keyframes checkBounce {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* No pulsing FAB — Carbon keeps animation purposeful */
+@keyframes fabPulse {
+  0%, 100% { box-shadow: 0 4px 12px rgba(15, 98, 254, 0.3); }
+}
+
+.animate-fade-in  { animation: fadeIn  var(--transition-normal) ease forwards; }
+.animate-slide-up { animation: slideUp var(--transition-slow)   ease forwards; }
+.animate-slide-down { animation: slideDown var(--transition-normal) ease forwards; }
+.animate-scale-in { animation: scaleIn var(--transition-normal) ease forwards; }
+
+/* ==================== Layout ==================== */
+#app {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* ==================== Login Page ==================== */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  padding: var(--space-md);
+  background: var(--bg-primary);
+}
+
+.login-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0;               /* Carbon: square */
+  padding: var(--space-2xl) var(--space-xl);
+  width: 100%;
+  max-width: 400px;
+  animation: scaleIn var(--transition-slow) ease;
+  /* Carbon: subtle shadow instead of glass blur */
+  box-shadow: var(--shadow-lg);
+}
+
+.login-logo {
+  text-align: left;              /* Carbon: left-aligned by default */
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.login-logo h1 {
+  font-size: 1.25rem;           /* Carbon: productive-heading-03 */
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0;
+  /* Carbon doesn't use gradient text — flat color */
+  background: none;
+  -webkit-text-fill-color: unset;
+}
+
+.login-logo p {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-top: var(--space-xs);
+  letter-spacing: 0.16px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.login-error {
+  background: var(--danger-bg);
+  color: var(--danger);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 0;
+  border-left: 3px solid var(--danger);  /* Carbon: notification border */
+  font-size: 0.875rem;
+  display: none;
+}
+
+.login-error.visible {
+  display: block;
+  animation: slideDown var(--transition-fast) ease;
+}
+
+/* ==================== Sidebar (Carbon: Side Navigation) ==================== */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--bg-secondary);    /* Carbon: $layer-01 */
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+  transition: transform var(--transition-normal);
+}
+
+.sidebar-header {
+  height: var(--header-height);       /* Matches the top shell bar */
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-md);
+  border-bottom: 1px solid var(--border-color);
+  background: #161616;               /* Carbon: shell header is darkest */
+}
+
+.sidebar-header h1 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.1px;
+  /* Carbon logo/wordmark: flat, no gradient */
+  background: none;
+  -webkit-text-fill-color: unset;
+}
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-sm) 0;         /* Carbon: no horizontal padding on nav */
+}
+
+.nav-section {
+  margin-bottom: var(--space-md);
+}
+
+.nav-section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  color: var(--text-tertiary);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: 0;
+}
+
+/* Carbon side-nav items: full-width, 32px tall, no radius */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-md);
+  height: 32px;
+  border-radius: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 400;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border-left: 4px solid transparent;   /* Carbon active indicator */
+}
+
+.nav-item:hover {
+  background: #353535;                  /* layer-01-hover */
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: #e0e0e0;                  /* Carbon: selected side-nav item */
+  color: #161616;
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-item .nav-icon {
+  width: 16px;
+  text-align: center;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.nav-item .nav-badge {
+  margin-left: auto;
+  background: transparent;
+  padding: 0 var(--space-xs);
+  border-radius: 0;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.nav-group-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-md) 0 36px;   /* Carbon: nested nav indent */
+  height: 32px;
+  border-radius: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  width: 100%;
+  text-align: left;
+}
+
+.nav-group-item:hover {
+  background: #353535;
+  color: var(--text-primary);
+}
+
+.nav-group-item .group-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sidebar-footer {
+  padding: var(--space-sm) 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.sidebar-footer button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-md);
+  height: 48px;                        /* Carbon: larger footer actions */
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  border-radius: 0;
+  transition: all var(--transition-fast);
+  width: 100%;
+}
+
+.sidebar-footer button:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* ==================== Main Content ==================== */
+.main-content {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Carbon Shell Header — 48px, sharp, dark */
+.content-header {
+  height: var(--header-height);
+  padding: 0 var(--space-md);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-secondary);
+  /* Carbon: no blur on shell — solid surface */
+  backdrop-filter: none;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.content-header h2 {
+  font-size: 0.875rem;               /* Carbon shell title: body weight */
+  font-weight: 400;
+  color: var(--text-primary);
+  letter-spacing: 0.16px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.mobile-menu-btn {
+  display: none;
+  padding: var(--space-sm);
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+/* Carbon Search (bx--search) */
+.search-bar {
+  position: relative;
+  width: 240px;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 0 var(--space-md) 0 40px;
+  height: 32px;
+  background: var(--bg-tertiary);         /* Carbon: field slightly lighter in dark */
+  border: none;
+  border-bottom: 1px solid var(--border-color-hover);
+  border-radius: 0;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: border-color var(--transition-fast);
+}
+
+.search-bar input::placeholder { color: var(--text-tertiary); }
+
+.search-bar input:focus {
+  background: var(--bg-tertiary);
+  border-bottom-color: var(--accent);
+  outline: none;
+  box-shadow: none;
+}
+
+.search-bar .search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+  pointer-events: none;
+}
+
+/* Carbon Content Switcher / Filter tabs */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;                                /* Carbon: content switcher has no gap */
+  padding: var(--space-sm) var(--space-md);
+  overflow-x: auto;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 var(--space-sm);
+  height: 32px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 0;                      /* Carbon: square tags */
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  letter-spacing: 0.32px;
+}
+
+.filter-chip:hover {
+  background: #454545;
+  border-color: var(--border-color-hover);
+  color: var(--text-primary);
+}
+
+.filter-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* Content Body */
+.content-body {
+  flex: 1;
+  padding: var(--space-lg) var(--space-xl);
+  max-width: var(--max-content-width);
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ==================== Task Cards (Carbon: Tile / ClickableTile) ==================== */
+.task-group-section {
+  margin-bottom: var(--space-xl);
+}
+
+.task-group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-sm);
+}
+
+.task-group-header .group-indicator {
+  width: 3px;
+  height: 16px;
+  border-radius: 0;                     /* Carbon: sharp edges */
+}
+
+.task-group-header h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.16px;
+}
+
+.task-group-header .group-count {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-left: var(--space-xs);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;                             /* Carbon: tile rows share borders */
+}
+
+/* Carbon Tile — flat, bordered, no shadow at rest */
+.task-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0;
+  padding: var(--space-md);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  cursor: pointer;
+  position: relative;
+  overflow: visible;
+  animation: slideUp var(--transition-slow) ease forwards;
+}
+
+/* Carbon: left border accent for priority — sharp stroke, no pseudo-radius */
+.task-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  transition: background var(--transition-fast);
+}
+
+.task-card.priority-0::before { background: transparent; }
+.task-card.priority-1::before { background: var(--priority-high); }
+.task-card.priority-2::before { background: var(--priority-urgent); }
+
+.task-card.priority-1 { border-left-color: transparent; }
+.task-card.priority-2 { border-left-color: transparent; }
+
+/* Carbon ClickableTile hover */
+.task-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-color-hover);
+  transform: none;                      /* Carbon: no lift effect */
+  box-shadow: none;
+}
+
+.task-card.completed { opacity: 0.45; }
+.task-card.completed .task-title {
+  text-decoration: line-through;
+  color: var(--text-tertiary);
+}
+
+.task-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+/* Carbon Checkbox */
+.task-checkbox {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  margin-top: 1px;
+}
+
+.task-checkbox input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.task-checkbox .checkmark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--text-secondary);    /* Carbon: checkbox border */
+  border-radius: 0;                           /* Carbon: square checkbox */
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.task-checkbox input:checked + .checkmark {
+  background: var(--accent);
+  border-color: var(--accent);
+  animation: checkBounce 0.15s ease;
+}
+
+.task-checkbox .checkmark::after {
+  content: '';
+  width: 5px;
+  height: 9px;
+  border: 2px solid white;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg) translateY(-1px);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.task-checkbox input:checked + .checkmark::after {
+  opacity: 1;
+}
+
+.task-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  word-wrap: break-word;
+  letter-spacing: 0.16px;
+}
+
+.task-details {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: var(--space-xs);
+  line-height: 1.5;
+  letter-spacing: 0.32px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.task-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+/* .task-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0;
+} */
+
+/* .task-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(---text-tertiary);
+  background: var(--priority-normal);
+  padding: 2px 6px;
+  border-radius: 0;                   /* Carbon: square tag 
+  font-family: 'IBM Plex Mono', monospace;
+} */
+
+.task-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+
+  color: var(#ffffff, #ffffff);        /* text color */
+  background: transparent;               /* remove fill */
+  /*border: 1px solid var(--primary, #0f62fe); /* chip border */
+
+  padding: 2px 6px;
+  border-radius: 0px;                    /* or 0 if you want strict Carbon */
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.task-date.overdue { color: var(--danger); }
+.task-date.today   { color: var(--accent); }
+
+/* .task-deadline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--warning);
+  background: var(--priority-normal);
+  padding: 2px 6px;
+  border-radius: 0;                   /* Carbon: square tag 
+  font-family: 'IBM Plex Mono', monospace;
+} */
+
+.task-deadline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+
+  color: var(--primary, #ffffff);        /* text color */
+  background: transparent;               /* remove fill */
+  border: 1px solid var(--primary, #ffffff); /* chip border */
+
+  padding: 2px 6px;
+  border-radius: 0px;                    /* or 0 if you want strict Carbon */
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* Carbon Tag */
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.32px;
+  padding: 0 var(--space-xs);
+  height: 18px;
+  border-radius: 0;
+}
+
+.priority-badge.urgent {
+  background: var(--priority-urgent-bg);
+  color: var(--priority-urgent);
+  outline: 1px solid var(--priority-urgent);
+}
+
+.priority-badge.high {
+  background: var(--priority-high-bg);
+  color: var(--priority-high);
+  outline: 1px solid var(--priority-high);
+}
+
+/* Carbon Tags */
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: var(--space-sm);
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 var(--space-sm);
+  height: 24px;                        /* Carbon: $spacing-06 tag height */
+  border-radius: 0;
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.32px;
+  border: 1px solid rgba(255,255,255,0.12);
+  transition: all var(--transition-fast);
+}
+
+.tag-chip .tag-type-label {
+  font-weight: 600;
+  opacity: 0.65;
+}
+
+/* Subtasks */
+.subtask-preview {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+}
+
+.subtask-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+/* Carbon ProgressBar */
+.subtask-progress-bar {
+  flex: 1;
+  height: 4px;                         /* Carbon: default progress bar height */
+  background: var(--bg-tertiary);
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.subtask-progress-fill {
+  height: 100%;
+  background: var(--accent);           /* Carbon: no gradient, flat color */
+  border-radius: 0;
+  transition: width var(--transition-normal);
+}
+
+.subtask-progress-text {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.subtask-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: 4px 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.subtask-item.completed .subtask-title {
+  text-decoration: line-through;
+  color: var(--text-tertiary);
+}
+
+.subtask-title { flex: 1; }
+
+.subtask-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+  margin-left: 28px;
+}
+
+.task-card-actions {
+  display: flex;
+  gap: var(--space-xs);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.task-card:hover .task-card-actions { opacity: 1; }
+
+.task-action-btn {
+  padding: 6px;
+  border-radius: 0;
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+  transition: all var(--transition-fast);
+}
+
+.task-action-btn:hover {
+  background: var(--bg-glass-hover);
+  color: var(--text-primary);
+}
+
+.task-action-btn.delete:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* ==================== FAB → Carbon Primary Button ==================== */
+/* Carbon doesn't use FABs — nearest equivalent is a prominent primary btn */
+.fab {
+  position: fixed;
+  bottom: var(--space-xl);
+  right: var(--space-xl);
+  height: 48px;
+  padding: 0 var(--space-lg);
+  border-radius: 0;
+  background: var(--accent);          /* Carbon: $interactive, flat fill */
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 400;
+  font-family: inherit;
+  letter-spacing: 0.16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  box-shadow: var(--shadow-md);
+  transition: background var(--transition-fast);
+  z-index: 90;
+  animation: none;
+  min-width: 56px;
+}
+
+.fab:hover {
+  background: var(--accent-hover);
+  transform: none;                    /* Carbon: no scale/rotate on hover */
+  box-shadow: var(--shadow-md);
+}
+
+/* ==================== Modal (Carbon: Modal) ==================== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);   /* Carbon: $overlay */
+  backdrop-filter: none;              /* Carbon: no blur on overlay */
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  animation: fadeIn var(--transition-fast) ease;
+}
+
+.modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0;
+  width: 100%;
+  max-width: 608px;                   /* Carbon: default modal width */
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: slideUp var(--transition-normal) ease;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg) var(--space-xl) var(--space-md);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  z-index: 10;
+}
+
+.modal-header h3 {
+  font-size: 1.25rem;                /* Carbon: productive-heading-04 */
+  font-weight: 400;
+  color: var(--text-primary);
+  letter-spacing: 0;
+}
+
+.modal-close {
+  padding: var(--space-sm);
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  border-radius: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: calc(-1 * var(--space-sm));
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-glass-hover);
+}
+
+.modal-body {
+  padding: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* Carbon: modal actions in a dedicated footer bar */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0;                             /* Carbon: button group — no gap, shared border */
+  padding: var(--space-lg) var(--space-xl);
+  border-top: 1px solid var(--border-color);
+}
+
+/* ==================== Form Controls (Carbon: TextInput, Select) ==================== */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.form-group label {
+  font-size: 0.75rem;                 /* Carbon: label-01 */
+  font-weight: 400;
+  color: var(--text-secondary);
+  letter-spacing: 0.32px;
+  line-height: 1.333;
+}
+
+/* Carbon TextInput: underline-only on focus, flat rectangle body */
+.form-input {
+  padding: 0 var(--space-md);
+  height: 40px;                       /* Carbon: text-input default height */
+  background: var(--bg-input);
+  border: none;
+  border-bottom: 1px solid var(--border-color-hover);
+  border-radius: 0;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: border-color var(--transition-fast);
+  width: 100%;
+  display: block;
+}
+
+.form-input:focus {
+  outline: 2px solid var(--accent);  /* Carbon: $focus ring */
+  outline-offset: -2px;
+  border-bottom-color: transparent;
+  background: var(--bg-input);
+  box-shadow: none;
+}
+
+.form-input::placeholder { color: var(--text-tertiary); }
+
+textarea.form-input {
+  padding: var(--space-sm) var(--space-md);
+  height: auto;
+  min-height: 80px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.form-select {
+  padding: 0 var(--space-md);
+  height: 40px;
+  background: var(--bg-input);
+  border: none;
+  border-bottom: 1px solid var(--border-color-hover);
+  border-radius: 0;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: border-color var(--transition-fast);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 32 32'%3E%3Cpath fill='%238d8d8d' d='M16 22L6 12l1.4-1.4 8.6 8.6 8.6-8.6L26 12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.form-select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-bottom-color: transparent;
+  background-color: var(--bg-input);
+}
+
+.form-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* ==================== Buttons (Carbon: Button) ==================== */
+/* Carbon: all buttons are 0 radius, fixed heights, letter-spacing 0.16px */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-md);
+  height: 40px;                       /* Carbon: default button height */
+  border-radius: 0;
+  font-size: 0.875rem;
+  font-weight: 400;
+  font-family: inherit;
+  letter-spacing: 0.16px;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+/* Carbon: Primary Button */
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  box-shadow: none;
+  transform: none;
+}
+
+/* Carbon: Secondary Button */
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-glass-hover);
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+/* Carbon: Danger Button */
+.btn-danger {
+  background: var(--danger);
+  color: white;
+  border-color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: #b81922;
+  border-color: #b81922;
+}
+
+/* Carbon: Ghost Button */
+.btn-ghost {
+  padding: 0 var(--space-sm);
+  color: var(--accent);
+  font-size: 0.875rem;
+  height: 32px;
+  border: none;
+  background: transparent;
+}
+
+.btn-ghost:hover {
+  color: var(--accent-hover);
+  background: var(--accent-glow);
+}
+
+/* Carbon: Small button */
+.btn-sm {
+  height: 32px;
+  padding: 0 var(--space-sm);
+  font-size: 0.875rem;
+}
+
+/* ==================== Subtask Editor ==================== */
+.subtask-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;                           /* Carbon: list with hairline separators */
+}
+
+.subtask-editor-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-tertiary);
+  border-radius: 0;
+  border-bottom: 1px solid var(--border-color);
+  animation: slideUp var(--transition-fast) ease;
+}
+
+.subtask-editor-item input {
+  flex: 1;
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+}
+
+.subtask-editor-item .remove-subtask {
+  padding: 4px;
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+  transition: color var(--transition-fast);
+  border-radius: 0;
+}
+
+.subtask-editor-item .remove-subtask:hover { color: var(--danger); }
+
+.add-subtask-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-family: inherit;
+  border-radius: 0;
+  border: 1px dashed var(--border-color-hover);
+  background: transparent;
+  transition: all var(--transition-fast);
+  letter-spacing: 0.16px;
+}
+
+.add-subtask-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
+/* ==================== Tag Selector ==================== */
+.tag-selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.tag-selector-group { margin-bottom: var(--space-sm); }
+
+.tag-selector-group-title {
+  font-size: 0.6875rem;               /* Carbon: helper-text-01 */
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.32px;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-xs);
+}
+
+.tag-selector-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tag-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 var(--space-sm);
+  height: 24px;
+  border-radius: 0;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  letter-spacing: 0.32px;
+}
+
+.tag-option:hover {
+  border-color: var(--border-color-hover);
+  color: var(--text-primary);
+  background: var(--bg-glass-hover);
+}
+
+.tag-option.selected {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
+/* ==================== Tag Manager ==================== */
+.tag-manager {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.tag-type-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0;
+  overflow: hidden;
+  animation: slideUp var(--transition-slow) ease forwards;
+}
+
+.tag-type-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-color);
+  height: 40px;
+  background: var(--bg-tertiary);
+}
+
+.tag-type-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.tag-type-header .type-icon  { font-size: 0.875rem; }
+.tag-type-header .type-name  { font-weight: 600; font-size: 0.875rem; }
+
+.tag-type-header .type-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 0;
+}
+
+.tag-type-body {
+  padding: var(--space-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.tag-type-body .tag-chip { cursor: default; }
+
+.tag-type-body .tag-chip .tag-remove {
+  cursor: pointer;
+  opacity: 0.5;
+  font-size: 0.75rem;
+  transition: opacity var(--transition-fast);
+}
+
+.tag-type-body .tag-chip .tag-remove:hover {
+  opacity: 1;
+  color: var(--danger);
+}
+
+.add-tag-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 var(--space-sm);
+  height: 24px;
+  border: 1px dashed var(--border-color-hover);
+  border-radius: 0;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.add-tag-inline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* ==================== Toast (Carbon: Notification - inline) ==================== */
+.toast-container {
+  position: fixed;
+  bottom: var(--space-xl);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  pointer-events: none;
+  min-width: 320px;
+}
+
+.toast {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp var(--transition-normal) ease;
+  pointer-events: auto;
+  backdrop-filter: none;
+  letter-spacing: 0.16px;
+}
+
+/* Carbon: Notification type — left border accent */
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error   { border-left: 3px solid var(--danger);  }
+.toast.info    { border-left: 3px solid var(--accent);  }
+
+/* ==================== Empty State ==================== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+  animation: fadeIn var(--transition-slow) ease;
+}
+
+.empty-state .empty-icon {
+  font-size: 2rem;
+  margin-bottom: var(--space-md);
+  opacity: 0.25;
+}
+
+.empty-state h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xs);
+  letter-spacing: 0;
+}
+
+.empty-state p {
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  max-width: 300px;
+  line-height: 1.5;
+  letter-spacing: 0.16px;
+}
+
+/* ==================== Loading Skeleton ==================== */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  border-radius: 0;
+}
+
+.skeleton-task {
+  height: 64px;
+  margin-bottom: 1px;
+  border-radius: 0;
+}
+
+/* ==================== Confirm Dialog ==================== */
+.confirm-dialog { text-align: left; }
+
+.confirm-dialog p {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: var(--space-lg);
+  line-height: 1.5;
+  letter-spacing: 0.16px;
+}
+
+.confirm-dialog .confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0;
+}
+
+/* ==================== Responsive ==================== */
+@media (max-width: 768px) {
+  :root { --sidebar-width: 0px; }
+
+  .sidebar {
+    transform: translateX(-100%);
+    width: 256px;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebar.open { transform: translateX(0); }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 99;
+  }
+
+  .sidebar-backdrop.visible { display: block; }
+
+  .main-content { margin-left: 0; }
+  .mobile-menu-btn { display: block; }
+
+  .content-header {
+    padding: 0 var(--space-sm);
+  }
+
+  .content-body {
+    padding: var(--space-md);
+  }
+
+  .filter-bar {
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .search-bar {
+    width: 100%;
+    order: 10;
+  }
+
+  .header-actions { flex-wrap: wrap; }
+
+  .form-row { grid-template-columns: 1fr; }
+
+  .fab {
+    bottom: var(--space-md);
+    right: var(--space-md);
+  }
+
+  .modal { max-height: 90vh; }
+}
+
+/* ==================== Utility ==================== */
+.hidden { display: none !important; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  border: 0;
+}

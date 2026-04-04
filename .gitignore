@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Cloudflare Workers / Wrangler
+.wrangler/
+dist/
+build/
+
+# Secrets and Environment Variables
+.env
+.dev.vars
+.dev.vars.test
+
+# OS / Editor Files
+.DS_Store
+.vscode/
+*.swp
+
+# Others 
+INSTRUCTIONS.md

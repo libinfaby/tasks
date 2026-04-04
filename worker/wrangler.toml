@@ -1,0 +1,17 @@
+name = "tasks-api"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Custom domain - uncomment after first deploy and creating the domain in Cloudflare
+# route = { pattern = "tasks-api.libinfaby.dev/*", custom_domain = true }
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tasks-db"
+database_id = "df7676db-0acc-4c23-be8f-5cbeccb5e90a"
+migrations_dir = "migrations"
+
+[vars]
+ALLOWED_ORIGIN = "https://tasks.libinfaby.dev"
+JWT_EXPIRY = "7d"
