@@ -85,7 +85,7 @@ class App {
         createElement('button', {
           className: 'mobile-menu-btn',
           onClick: () => this.sidebar.openMobile(),
-        }, 'Menu'),
+        }, '☰ Menu'),
         createElement('h2', { id: 'view-title' }, 'All Tasks')
       ),
       createElement('div', { className: 'header-actions' },
