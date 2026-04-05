@@ -45,8 +45,8 @@ tagRoutes.post('/', async (c) => {
     }
 
     const result = await db.prepare(
-      'INSERT INTO tag_types (name, color, icon) VALUES (?, ?, ?)'
-    ).bind(name.trim(), color || '#6366f1', icon || null).run();
+      'INSERT INTO tag_types (name, color, fg_color, icon, has_bg) VALUES (?, ?, ?, ?, ?)'
+    ).bind(name.trim(), color || '#6366f1', body.fg_color || '#ffffff', icon || null, body.has_bg !== undefined ? (body.has_bg ? 1 : 0) : 1).run();
 
     return c.json({ id: result.meta.last_row_id, message: 'Tag type created' }, 201);
   } catch (error: any) {
@@ -71,9 +71,11 @@ tagRoutes.put('/:id', async (c) => {
       `UPDATE tag_types SET 
         name = COALESCE(?, name),
         color = COALESCE(?, color),
-        icon = COALESCE(?, icon)
+        fg_color = COALESCE(?, fg_color),
+        icon = COALESCE(?, icon),
+        has_bg = COALESCE(?, has_bg)
        WHERE id = ?`
-    ).bind(name?.trim() || null, color || null, icon || null, id).run();
+    ).bind(name?.trim() || null, color || null, body.fg_color || null, icon || null, body.has_bg !== undefined ? (body.has_bg ? 1 : 0) : null, id).run();
 
     if (result.meta.changes === 0) {
       return c.json({ error: 'Tag type not found' }, 404);
@@ -144,8 +146,8 @@ tagRoutes.post('/tags', async (c) => {
     }
 
     const result = await db.prepare(
-      'INSERT INTO tags (name, tag_type_id, color) VALUES (?, ?, ?)'
-    ).bind(name.trim(), tag_type_id, color || null).run();
+      'INSERT INTO tags (name, tag_type_id, color, fg_color, has_bg) VALUES (?, ?, ?, ?, ?)'
+    ).bind(name.trim(), tag_type_id, color || null, body.fg_color || null, body.has_bg !== undefined ? (body.has_bg ? 1 : 0) : 1).run();
 
     return c.json({ id: result.meta.last_row_id, message: 'Tag created' }, 201);
   } catch (error: any) {
@@ -170,9 +172,11 @@ tagRoutes.put('/tags/:id', async (c) => {
       `UPDATE tags SET 
         name = COALESCE(?, name),
         tag_type_id = COALESCE(?, tag_type_id),
-        color = COALESCE(?, color)
+        color = COALESCE(?, color),
+        fg_color = COALESCE(?, fg_color),
+        has_bg = COALESCE(?, has_bg)
        WHERE id = ?`
-    ).bind(name?.trim() || null, tag_type_id || null, color || null, id).run();
+    ).bind(name?.trim() || null, tag_type_id || null, color || null, body.fg_color || null, body.has_bg !== undefined ? (body.has_bg ? 1 : 0) : null, id).run();
 
     if (result.meta.changes === 0) {
       return c.json({ error: 'Tag not found' }, 404);

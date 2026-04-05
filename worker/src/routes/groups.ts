@@ -65,8 +65,8 @@ groupRoutes.post('/', async (c) => {
     const nextPos = (posResult as any)?.[0]?.next_pos || 0;
 
     const result = await db.prepare(
-      'INSERT INTO task_groups (name, color, position) VALUES (?, ?, ?)'
-    ).bind(name.trim(), color || '#8b5cf6', nextPos).run();
+      'INSERT INTO task_groups (name, color, fg_color, position, has_bg) VALUES (?, ?, ?, ?, ?)'
+    ).bind(name.trim(), color || '#8b5cf6', body.fg_color || '#ffffff', nextPos, body.has_bg !== undefined ? (body.has_bg ? 1 : 0) : 1).run();
 
     return c.json({ id: result.meta.last_row_id, message: 'Group created' }, 201);
   } catch (error) {
@@ -88,9 +88,11 @@ groupRoutes.put('/:id', async (c) => {
       `UPDATE task_groups SET 
         name = COALESCE(?, name),
         color = COALESCE(?, color),
-        position = COALESCE(?, position)
+        fg_color = COALESCE(?, fg_color),
+        position = COALESCE(?, position),
+        has_bg = COALESCE(?, has_bg)
        WHERE id = ?`
-    ).bind(name?.trim() || null, color || null, position !== undefined ? position : null, id).run();
+    ).bind(name?.trim() || null, color || null, body.fg_color || null, position !== undefined ? position : null, body.has_bg !== undefined ? (body.has_bg ? 1 : 0) : null, id).run();
 
     if (result.meta.changes === 0) {
       return c.json({ error: 'Group not found' }, 404);

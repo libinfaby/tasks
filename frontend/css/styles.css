@@ -38,17 +38,17 @@
   --accent-gradient: linear-gradient(135deg, #0f62fe 0%, #0043ce 100%);
 
   /* Priority / Severity — Carbon uses semantic alert colors */
-  --priority-urgent:    #fa4d56;   /* $support-error */
+  --priority-urgent:    #da1e28;   /* $support-error */
   --priority-urgent-bg: rgba(250, 77, 86, 0.10);
-  --priority-high:      #f1c21b;   /* $support-warning */
+  --priority-high:      #ff832b;   /* $support-warning */
   --priority-high-bg:   rgba(241, 194, 27, 0.10);
   --priority-normal:    #0f62fe;
 
   /* Status */
   --success:    #42be65;  /* $support-success */
   --success-bg: rgba(66, 190, 101, 0.10);
-  --warning:    #f1c21b;  /* $support-warning */
-  --danger:     #fa4d56;  /* $support-error */
+  --warning:    #ff832b;  /* $support-warning */
+  --danger:     #da1e28;  /* $support-error */
   --danger-bg:  rgba(250, 77, 86, 0.10);
 
   /* Carbon 8px base unit spacing */
@@ -780,22 +780,15 @@ input, textarea, select {
 } */
 
 .task-date {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-
-  color: var(#ffffff, #ffffff);        /* text color */
-  background: transparent;               /* remove fill */
-  /*border: 1px solid var(--primary, #0f62fe); /* chip border */
-
-  padding: 2px 6px;
-  border-radius: 0px;                    /* or 0 if you want strict Carbon */
-  font-family: 'IBM Plex Mono', monospace;
 }
 
-.task-date.overdue { color: var(--danger); }
-.task-date.today   { color: var(--accent); }
+.task-date.overdue { color: var(--danger); font-weight: 600; }
+.task-date.today   { color: var(--primary); font-weight: 600; }
 
 /* .task-deadline {
   display: inline-flex;
@@ -810,18 +803,11 @@ input, textarea, select {
 } */
 
 .task-deadline {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-
-  color: var(--primary, #ffffff);        /* text color */
-  background: transparent;               /* remove fill */
-  border: 1px solid var(--primary, #ffffff); /* chip border */
-
-  padding: 2px 6px;
-  border-radius: 0px;                    /* or 0 if you want strict Carbon */
-  font-family: 'IBM Plex Mono', monospace;
 }
 
 /* Carbon Tag */
@@ -829,24 +815,24 @@ input, textarea, select {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.6875rem;
-  font-weight: 400;
+  font-size: 0.65rem;
+  font-weight: 600;
   letter-spacing: 0.32px;
-  padding: 0 var(--space-xs);
+  padding: 0 6px;
   height: 18px;
   border-radius: 0;
+  color: white !important;
+  border: none !important;
+  outline: none !important;
+  text-transform: uppercase;
 }
 
 .priority-badge.urgent {
-  background: var(--priority-urgent-bg);
-  color: var(--priority-urgent);
-  outline: 1px solid var(--priority-urgent);
+  background: var(--priority-urgent) !important;
 }
 
 .priority-badge.high {
-  background: var(--priority-high-bg);
-  color: var(--priority-high);
-  outline: 1px solid var(--priority-high);
+  background: var(--priority-high) !important;
 }
 
 /* Carbon Tags */
@@ -867,8 +853,18 @@ input, textarea, select {
   font-size: 0.75rem;
   font-weight: 400;
   letter-spacing: 0.32px;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: none !important;
   transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.tag-chip.group-tag {
+  border-radius: 20px !important;
+  height: 20px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0 10px;
+  border: none !important;
 }
 
 .tag-chip .tag-type-label {
@@ -939,9 +935,10 @@ input, textarea, select {
 
 .task-card-actions {
   display: flex;
-  gap: var(--space-xs);
+  gap: 2px;
   opacity: 0;
   transition: opacity var(--transition-fast);
+  align-items: center;
 }
 
 .task-card:hover .task-card-actions { opacity: 1; }

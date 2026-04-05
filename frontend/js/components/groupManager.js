@@ -3,7 +3,7 @@
 // ============================================================
 
 import { api } from '../api.js';
-import { createElement, showToast, getTagBg } from '../utils.js';
+import { createElement, showToast, getChipStyle } from '../utils.js';
 
 export class GroupManager {
   constructor({ onRefreshSidebar }) {
@@ -44,7 +44,7 @@ export class GroupManager {
         },
           createElement('div', { className: 'task-card-header' },
             createElement('div', {
-              style: { width: '12px', height: '12px', borderRadius: '50%', background: group.color, marginRight: '8px', flexShrink: '0' }
+              style: { width: '12px', height: '12px', borderRadius: '50%', background: group.color, border: 'none', marginRight: '8px', flexShrink: '0' }
             }),
             createElement('div', { className: 'task-card-body' },
               createElement('div', { className: 'task-title' }, group.name),
@@ -68,32 +68,105 @@ export class GroupManager {
   }
 
   _showAddGroup(root) {
-    const overlay = this._modal('New Group', [
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Name'),
-        createElement('input', { type: 'text', id: 'group-name', className: 'form-input', placeholder: 'Group name...' })),
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Color'),
-        createElement('input', { type: 'color', id: 'group-color', className: 'form-input', value: '#8b5cf6', style: { height: '40px', padding: '4px', cursor: 'pointer' } }))
+    const preview = createElement('span', { className: 'tag-chip' }, 'Group Preview');
+    
+    const updatePreview = () => {
+      const name = nameInput.value || 'Group Preview';
+      const style = getChipStyle({
+        color: colorInput.value,
+        fg_color: fgColorInput.value,
+        has_bg: hasBgCheck.checked
+      });
+      preview.textContent = name;
+      Object.assign(preview.style, style);
+      preview.style.marginBottom = '12px';
+      preview.style.display = 'inline-block';
+    };
+
+    const nameInput = createElement('input', { type: 'text', className: 'form-input', placeholder: 'Group name...', onInput: updatePreview });
+    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: '#8b5cf6', style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: '#ffffff', style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const hasBgCheck = createElement('input', { type: 'checkbox', checked: true, onChange: updatePreview });
+
+    this._modal('New Group', [
+      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
+      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Name'), nameInput),
+      createElement('div', { className: 'form-row' },
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Background'), colorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Foreground'), fgColorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' } }, hasBgCheck, ' Show background')))
     ], async () => {
-      const name = document.getElementById('group-name')?.value?.trim();
+      const name = nameInput.value.trim();
       if (!name) { showToast('Name required', 'error'); return false; }
-      try { await api.createGroup({ name, color: document.getElementById('group-color')?.value }); showToast('Group created', 'success'); this.render(root); this.onRefreshSidebar?.(); return true; }
+      try { 
+        await api.createGroup({ 
+          name, 
+          color: colorInput.value,
+          fg_color: fgColorInput.value,
+          has_bg: hasBgCheck.checked
+        }); 
+        showToast('Group created', 'success'); 
+        this.render(root); 
+        this.onRefreshSidebar?.(); 
+        return true; 
+      }
       catch (err) { showToast(err.message, 'error'); return false; }
     });
-    setTimeout(() => document.getElementById('group-name')?.focus(), 100);
+    setTimeout(() => {
+        nameInput.focus();
+        updatePreview();
+    }, 100);
   }
 
   _editGroup(group, root) {
+    const preview = createElement('span', { className: 'tag-chip' }, group.name);
+    
+    const updatePreview = () => {
+      const name = nameInput.value || group.name;
+      const style = getChipStyle({
+        color: colorInput.value,
+        fg_color: fgColorInput.value,
+        has_bg: hasBgCheck.checked
+      });
+      preview.textContent = name;
+      Object.assign(preview.style, style);
+      preview.style.marginBottom = '12px';
+      preview.style.display = 'inline-block';
+    };
+
+    const nameInput = createElement('input', { type: 'text', className: 'form-input', value: group.name, onInput: updatePreview });
+    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: group.color, style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: group.fg_color || '#ffffff', style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const hasBgCheck = createElement('input', { type: 'checkbox', checked: group.has_bg !== undefined ? !!group.has_bg : true, onChange: updatePreview });
+
     this._modal('Edit Group', [
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Name'),
-        createElement('input', { type: 'text', id: 'group-name', className: 'form-input', value: group.name })),
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Color'),
-        createElement('input', { type: 'color', id: 'group-color', className: 'form-input', value: group.color, style: { height: '40px', padding: '4px', cursor: 'pointer' } }))
+      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
+      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Name'), nameInput),
+      createElement('div', { className: 'form-row' },
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Background'), colorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Foreground'), fgColorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' } }, hasBgCheck, ' Show background')))
     ], async () => {
-      const name = document.getElementById('group-name')?.value?.trim();
+      const name = nameInput.value.trim();
       if (!name) { showToast('Name required', 'error'); return false; }
-      try { await api.updateGroup(group.id, { name, color: document.getElementById('group-color')?.value }); showToast('Updated', 'success'); this.render(root); this.onRefreshSidebar?.(); return true; }
+      try { 
+        await api.updateGroup(group.id, { 
+          name, 
+          color: colorInput.value,
+          fg_color: fgColorInput.value,
+          has_bg: hasBgCheck.checked
+        }); 
+        showToast('Updated', 'success'); 
+        this.render(root); 
+        this.onRefreshSidebar?.(); 
+        return true; 
+      }
       catch (err) { showToast(err.message, 'error'); return false; }
     });
+    setTimeout(() => {
+        nameInput.focus();
+        updatePreview();
+    }, 100);
   }
 
   async _deleteGroup(group, root) {

@@ -122,7 +122,7 @@ export class Sidebar {
     },
       createElement('span', {
         className: 'group-dot',
-        style: { background: group.color }
+        style: { background: group.color, border: 'none' }
       }),
       createElement('span', {}, group.name),
       createElement('span', { className: 'nav-badge' }, String(group.active_task_count || 0))

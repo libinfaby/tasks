@@ -128,14 +128,43 @@ export function showToast(message, type = 'info', duration = 3000) {
 /**
  * Get tag chip background color from tag color
  */
-export function getTagBg(color) {
+export function getTagBg(color, solid = false) {
   if (!color) return 'rgba(99, 102, 241, 0.1)';
+  if (solid) return color;
   // Convert hex to rgba with low opacity
   const hex = color.replace('#', '');
+  if (hex.length !== 6) return color;
   const r = parseInt(hex.substring(0, 2), 16);
   const g = parseInt(hex.substring(2, 4), 16);
   const b = parseInt(hex.substring(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, 0.12)`;
+}
+
+/**
+ * Get chip style object based on color, fg_color and has_bg
+ */
+export function getChipStyle(config) {
+  const chipBg = config.color || config.type_color || '#6366f1';
+  const chipFg = config.fg_color || config.type_fg_color || '#ffffff';
+  // Check both tag levels and group levels if applicable
+  const hasBg = config.has_bg !== undefined ? !!config.has_bg : 
+               (config.type_has_bg !== undefined ? !!config.type_has_bg : true);
+
+  if (hasBg) {
+    return {
+      background: chipBg,
+      color: chipFg,
+      border: 'none',
+      boxShadow: 'none'
+    };
+  } else {
+    return {
+      background: 'transparent',
+      color: chipBg,
+      border: 'none',
+      boxShadow: 'none'
+    };
+  }
 }
 
 /**

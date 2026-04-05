@@ -3,7 +3,7 @@
 // ============================================================
 
 import { api } from '../api.js';
-import { createElement, showToast, getTagBg } from '../utils.js';
+import { createElement, showToast, getTagBg, getChipStyle } from '../utils.js';
 
 export class TagManager {
   constructor() {
@@ -50,7 +50,7 @@ export class TagManager {
         createElement('div', { className: 'tag-type-header-left' },
           createElement('span', { className: 'type-icon' }, type.icon || ''),
           createElement('span', { className: 'type-name' }, type.name),
-          createElement('span', { className: 'type-color', style: { background: type.color } })
+          createElement('span', { className: 'type-color', style: { background: type.color, border: 'none' } })
         ),
         createElement('div', { style: { display: 'flex', gap: '4px' } },
           createElement('button', { className: 'task-action-btn', title: 'Edit', onClick: () => this._editType(type, root) }, 'Edit'),
@@ -65,10 +65,17 @@ export class TagManager {
   }
 
   _chip(tag, type, root) {
-    const color = tag.color || type.color;
-    return createElement('span', { className: 'tag-chip', style: { background: getTagBg(color), color, borderColor: color + '22' } },
+    const style = getChipStyle({
+      color: tag.color,
+      fg_color: tag.fg_color,
+      has_bg: tag.has_bg,
+      type_color: type.color,
+      type_fg_color: type.fg_color,
+      type_has_bg: type.has_bg
+    });
+    return createElement('span', { className: 'tag-chip', style },
       tag.name,
-      createElement('button', { className: 'tag-remove', onClick: async (e) => {
+      createElement('button', { className: 'tag-remove', style: { color: style.color }, onClick: async (e) => {
         e.stopPropagation();
         if (confirm(`Delete tag "${tag.name}"?`)) {
           try { await api.deleteTag(tag.id); showToast('Tag deleted', 'success'); this.render(root); }
@@ -97,56 +104,158 @@ export class TagManager {
   }
 
   _showAddTagType(root) {
+    const preview = createElement('span', { className: 'tag-chip', style: { background: '#6366f1', color: '#ffffff', marginBottom: '12px', display: 'inline-block' } }, 'Preview Tag');
+    
+    const updatePreview = () => {
+      const name = nameInput.value || 'Preview Tag';
+      const style = getChipStyle({
+        color: colorInput.value,
+        fg_color: fgColorInput.value,
+        has_bg: hasBgCheck.checked
+      });
+      preview.textContent = name;
+      Object.assign(preview.style, style);
+    };
+
+    const nameInput = createElement('input', { type: 'text', className: 'form-input', placeholder: 'e.g., Project, Client...', onInput: updatePreview });
+    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: '#6366f1', style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: '#ffffff', style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const hasBgCheck = createElement('input', { type: 'checkbox', checked: true, onChange: updatePreview });
+    const iconInput = createElement('input', { type: 'text', className: 'form-input', placeholder: 'Tag', maxlength: '4' });
+
     const body = [
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Name'),
-        createElement('input', { type: 'text', id: 'new-type-name', className: 'form-input', placeholder: 'e.g., Project, Client...' })),
+      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
+      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Name'), nameInput),
       createElement('div', { className: 'form-row' },
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Color'),
-          createElement('input', { type: 'color', id: 'new-type-color', className: 'form-input', value: '#6366f1', style: { height: '40px', padding: '4px', cursor: 'pointer' } })),
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Icon'),
-          createElement('input', { type: 'text', id: 'new-type-icon', className: 'form-input', placeholder: 'Tag', maxlength: '4' })))
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Background'), colorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Foreground'), fgColorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' } }, hasBgCheck, ' Show background'))),
+      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Icon'), iconInput)
     ];
-    this._modal('New Tag', body, async () => {
-      const name = document.getElementById('new-type-name')?.value?.trim();
+    this._modal('New Tag Type', body, async () => {
+      const name = nameInput.value.trim();
       if (!name) { showToast('Name required', 'error'); throw 'stop'; }
-      try { await api.createTagType({ name, color: document.getElementById('new-type-color')?.value, icon: document.getElementById('new-type-icon')?.value?.trim() }); showToast('Created', 'success'); this.render(root); }
+      try { 
+        await api.createTagType({ 
+          name, 
+          color: colorInput.value, 
+          fg_color: fgColorInput.value,
+          has_bg: hasBgCheck.checked,
+          icon: iconInput.value.trim() 
+        }); 
+        showToast('Created', 'success'); 
+        this.render(root); 
+      }
       catch (err) { showToast(err.message, 'error'); }
     });
-    setTimeout(() => document.getElementById('new-type-name')?.focus(), 100);
+    setTimeout(() => {
+      nameInput.focus();
+      updatePreview();
+    }, 100);
   }
 
   _showAddTag(type, root) {
+    const preview = createElement('span', { className: 'tag-chip' }, 'Preview Tag');
+    
+    const updatePreview = () => {
+      const name = nameInput.value || 'Preview Tag';
+      const style = getChipStyle({
+        color: colorInput.value,
+        fg_color: fgColorInput.value,
+        has_bg: hasBgCheck.checked
+      });
+      preview.textContent = name;
+      Object.assign(preview.style, style);
+      preview.style.marginBottom = '12px';
+      preview.style.display = 'inline-block';
+    };
+
+    const nameInput = createElement('input', { type: 'text', className: 'form-input', placeholder: 'Tag name...', onInput: updatePreview });
+    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: type.color, style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: (type.fg_color || '#ffffff'), style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const hasBgCheck = createElement('input', { type: 'checkbox', checked: type.has_bg !== undefined ? !!type.has_bg : true, onChange: updatePreview });
+
     const body = [
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Tag Name'),
-        createElement('input', { type: 'text', id: 'new-tag-name', className: 'form-input', placeholder: 'Tag name...' })),
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Color'),
-        createElement('input', { type: 'color', id: 'new-tag-color', className: 'form-input', value: type.color, style: { height: '40px', padding: '4px', cursor: 'pointer' } }))
+      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
+      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Tag Name'), nameInput),
+      createElement('div', { className: 'form-row' },
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Background'), colorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Foreground'), fgColorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' } }, hasBgCheck, ' Show background')))
     ];
     this._modal(`Add ${type.name} Tag`, body, async () => {
-      const name = document.getElementById('new-tag-name')?.value?.trim();
+      const name = nameInput.value.trim();
       if (!name) { showToast('Name required', 'error'); throw 'stop'; }
-      try { await api.createTag({ name, tag_type_id: type.id, color: document.getElementById('new-tag-color')?.value }); showToast('Created', 'success'); this.render(root); }
+      try { 
+        await api.createTag({ 
+          name, 
+          tag_type_id: type.id, 
+          color: colorInput.value,
+          fg_color: fgColorInput.value,
+          has_bg: hasBgCheck.checked
+        }); 
+        showToast('Created', 'success'); 
+        this.render(root); 
+      }
       catch (err) { showToast(err.message, 'error'); }
     });
-    setTimeout(() => document.getElementById('new-tag-name')?.focus(), 100);
+    setTimeout(() => {
+      nameInput.focus();
+      updatePreview();
+    }, 100);
   }
 
   _editType(type, root) {
+    const preview = createElement('span', { className: 'tag-chip' }, type.name);
+    
+    const updatePreview = () => {
+      const name = nameInput.value || type.name;
+      const style = getChipStyle({
+        color: colorInput.value,
+        fg_color: fgColorInput.value,
+        has_bg: hasBgCheck.checked
+      });
+      preview.textContent = name;
+      Object.assign(preview.style, style);
+      preview.style.marginBottom = '12px';
+      preview.style.display = 'inline-block';
+    };
+
+    const nameInput = createElement('input', { type: 'text', className: 'form-input', value: type.name, onInput: updatePreview });
+    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: type.color, style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: (type.fg_color || '#ffffff'), style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const hasBgCheck = createElement('input', { type: 'checkbox', checked: type.has_bg !== undefined ? !!type.has_bg : true, onChange: updatePreview });
+    const iconInput = createElement('input', { type: 'text', className: 'form-input', value: type.icon || '', maxlength: '4' });
+
     const body = [
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Name'),
-        createElement('input', { type: 'text', id: 'edit-type-name', className: 'form-input', value: type.name })),
+      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
+      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Name'), nameInput),
       createElement('div', { className: 'form-row' },
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Color'),
-          createElement('input', { type: 'color', id: 'edit-type-color', className: 'form-input', value: type.color, style: { height: '40px', padding: '4px', cursor: 'pointer' } })),
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Icon'),
-          createElement('input', { type: 'text', id: 'edit-type-icon', className: 'form-input', value: type.icon || '', maxlength: '4' })))
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Background'), colorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Foreground'), fgColorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' } }, hasBgCheck, ' Show background'))),
+      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Icon'), iconInput)
     ];
     this._modal('Edit Tag Type', body, async () => {
-      const name = document.getElementById('edit-type-name')?.value?.trim();
+      const name = nameInput.value.trim();
       if (!name) { showToast('Name required', 'error'); throw 'stop'; }
-      try { await api.updateTagType(type.id, { name, color: document.getElementById('edit-type-color')?.value, icon: document.getElementById('edit-type-icon')?.value?.trim() }); showToast('Updated', 'success'); this.render(root); }
+      try { 
+        await api.updateTagType(type.id, { 
+          name, 
+          color: colorInput.value, 
+          fg_color: fgColorInput.value,
+          has_bg: hasBgCheck.checked,
+          icon: iconInput.value.trim() 
+        }); 
+        showToast('Updated', 'success'); 
+        this.render(root); 
+      }
       catch (err) { showToast(err.message, 'error'); }
     });
+    setTimeout(() => {
+      nameInput.focus();
+      updatePreview();
+    }, 100);
   }
 
   async _deleteType(type, root) {
