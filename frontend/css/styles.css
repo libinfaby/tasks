@@ -225,20 +225,17 @@ input, textarea, select {
 }
 
 .login-logo {
-  text-align: left;              /* Carbon: left-aligned by default */
+  text-align: left;
   margin-bottom: var(--space-xl);
   padding-bottom: var(--space-lg);
   border-bottom: 1px solid var(--border-color);
 }
 
-.login-logo h1 {
-  font-size: 1.25rem;           /* Carbon: productive-heading-03 */
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: 0;
-  /* Carbon doesn't use gradient text — flat color */
-  background: none;
-  -webkit-text-fill-color: unset;
+.login-logo-img {
+  width: 64px;
+  height: 64px;
+  display: block;
+  margin-bottom: var(--space-sm);
 }
 
 .login-logo p {
@@ -293,14 +290,10 @@ input, textarea, select {
   background: #161616;               /* Carbon: shell header is darkest */
 }
 
-.sidebar-header h1 {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: 0.1px;
-  /* Carbon logo/wordmark: flat, no gradient */
-  background: none;
-  -webkit-text-fill-color: unset;
+.sidebar-logo {
+  width: 28px;
+  height: 28px;
+  display: block;
 }
 
 .sidebar-nav {
@@ -1325,6 +1318,48 @@ textarea.form-input {
   gap: 4px;
 }
 
+.tag-selector-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-xs);
+}
+
+.tag-selector-add-btn {
+  font-size: 0.6875rem;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  padding: 2px 6px;
+  cursor: pointer;
+  letter-spacing: 0.16px;
+  transition: all var(--transition-fast);
+  opacity: 0.7;
+}
+
+.tag-selector-add-btn:hover {
+  opacity: 1;
+  background: var(--accent-glow);
+}
+
+.inline-tag-form {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  padding: 10px 12px;
+  margin-bottom: var(--space-sm);
+  animation: slideUp var(--transition-fast) ease;
+}
+
+.inline-tag-form .form-input {
+  background: var(--bg-input);
+}
+
+.tag-selector-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .tag-option {
   display: inline-flex;
   align-items: center;
@@ -1402,16 +1437,33 @@ textarea.form-input {
 
 .tag-type-body .tag-chip { cursor: default; }
 
+.tag-type-body .tag-chip.tag-chip-editable { cursor: pointer; }
+
+.tag-type-body .tag-chip .tag-edit,
 .tag-type-body .tag-chip .tag-remove {
   cursor: pointer;
-  opacity: 0.5;
-  font-size: 0.75rem;
+  opacity: 0;
+  font-size: 0.65rem;
   transition: opacity var(--transition-fast);
+  padding: 0 2px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  letter-spacing: 0.16px;
+}
+
+.tag-type-body .tag-chip.tag-chip-editable:hover .tag-edit,
+.tag-type-body .tag-chip.tag-chip-editable:hover .tag-remove {
+  opacity: 0.6;
+}
+
+.tag-type-body .tag-chip .tag-edit:hover {
+  opacity: 1 !important;
 }
 
 .tag-type-body .tag-chip .tag-remove:hover {
-  opacity: 1;
-  color: var(--danger);
+  opacity: 1 !important;
+  color: var(--danger) !important;
 }
 
 .add-tag-inline {

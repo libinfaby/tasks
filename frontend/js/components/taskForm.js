@@ -115,15 +115,27 @@ export class TaskForm {
   _renderTagSelector(containerId, selectedIds, onToggle) {
     const container = createElement('div', { className: 'tag-selector', id: containerId });
     if (this.tagTypes.length === 0) {
-      container.appendChild(createElement('p', { style: { fontSize: '0.8rem', color: 'var(--text-tertiary)' } }, 'No tags yet.'));
+      container.appendChild(createElement('div', { className: 'tag-selector-empty' },
+        createElement('p', { style: { fontSize: '0.8rem', color: 'var(--text-tertiary)', margin: '0' } }, 'No tag types yet.'),
+        createElement('button', {
+          type: 'button', className: 'add-tag-inline', style: { marginTop: '8px' },
+          onClick: () => this._showInlineCreateTagType(containerId, selectedIds, onToggle)
+        }, '+ Create Tag Type')
+      ));
       return container;
     }
     this.tagTypes.forEach(type => {
-      if (!type.tags || type.tags.length === 0) return;
+      const hasTags = type.tags && type.tags.length > 0;
       const group = createElement('div', { className: 'tag-selector-group' },
-        createElement('div', { className: 'tag-selector-group-title' }, `${type.name}`),
+        createElement('div', { className: 'tag-selector-group-header' },
+          createElement('div', { className: 'tag-selector-group-title' }, `${type.name}`),
+          createElement('button', {
+            type: 'button', className: 'tag-selector-add-btn',
+            onClick: () => this._showInlineCreateTag(type, containerId, selectedIds, onToggle)
+          }, '+ New')
+        ),
         createElement('div', { className: 'tag-selector-options' },
-          ...type.tags.map(tag => {
+          ...(hasTags ? type.tags.map(tag => {
             const isSelected = selectedIds.has(tag.id);
             const style = getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: type.color, type_fg_color: type.fg_color, type_has_bg: type.has_bg });
             return createElement('button', {
@@ -136,12 +148,130 @@ export class TaskForm {
               },
               onClick: () => onToggle(tag.id),
             }, tag.name);
-          })
+          }) : [createElement('span', { style: { fontSize: '0.75rem', color: 'var(--text-tertiary)', fontStyle: 'italic' } }, 'No tags — click + New to add')])
         )
       );
       container.appendChild(group);
     });
     return container;
+  }
+
+  _showInlineCreateTag(type, containerId, selectedIds, onToggle) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    // Remove any existing inline form
+    container.querySelector('.inline-tag-form')?.remove();
+
+    const nameInput = createElement('input', {
+      type: 'text', className: 'form-input', placeholder: `New ${type.name} tag name...`,
+      style: { height: '32px', fontSize: '0.8rem', flex: '1', minWidth: '0' }
+    });
+    const saveBtn = createElement('button', {
+      type: 'button', className: 'btn btn-primary btn-sm',
+      style: { height: '32px', padding: '0 12px', fontSize: '0.75rem', whiteSpace: 'nowrap' },
+      onClick: async () => {
+        const name = nameInput.value.trim();
+        if (!name) { nameInput.focus(); return; }
+        saveBtn.textContent = '...'; saveBtn.disabled = true;
+        try {
+          const result = await api.createTag({ name, tag_type_id: type.id, color: type.color, fg_color: type.fg_color || '#ffffff', has_bg: type.has_bg !== undefined ? type.has_bg : true });
+          showToast(`Tag "${name}" created`, 'success');
+          // Reload tag types and re-render selector in place
+          await this._reloadAndRefreshTagSelector(containerId, selectedIds, onToggle);
+        } catch (err) {
+          showToast(err.message, 'error');
+          saveBtn.textContent = 'Add'; saveBtn.disabled = false;
+        }
+      }
+    }, 'Add');
+    const cancelBtn = createElement('button', {
+      type: 'button', className: 'btn btn-secondary btn-sm',
+      style: { height: '32px', padding: '0 10px', fontSize: '0.75rem' },
+      onClick: () => form.remove()
+    }, 'Cancel');
+
+    const form = createElement('div', { className: 'inline-tag-form' },
+      createElement('div', { style: { fontSize: '0.7rem', color: 'var(--text-tertiary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.32px' } }, `Add tag to ${type.name}`),
+      createElement('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
+        nameInput, saveBtn, cancelBtn
+      )
+    );
+
+    // Insert the form at the top of the container
+    container.insertBefore(form, container.firstChild);
+    setTimeout(() => nameInput.focus(), 50);
+
+    // Support Enter key
+    nameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); saveBtn.click(); }
+      if (e.key === 'Escape') { form.remove(); }
+    });
+  }
+
+  _showInlineCreateTagType(containerId, selectedIds, onToggle) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.querySelector('.inline-tag-form')?.remove();
+
+    const nameInput = createElement('input', {
+      type: 'text', className: 'form-input', placeholder: 'Tag type name (e.g. Project, Client)...',
+      style: { height: '32px', fontSize: '0.8rem', flex: '1', minWidth: '0' }
+    });
+    const colorInput = createElement('input', {
+      type: 'color', value: '#6366f1',
+      style: { width: '32px', height: '32px', padding: '2px', cursor: 'pointer', border: '1px solid var(--border-color)', background: 'var(--bg-input)' }
+    });
+    const saveBtn = createElement('button', {
+      type: 'button', className: 'btn btn-primary btn-sm',
+      style: { height: '32px', padding: '0 12px', fontSize: '0.75rem', whiteSpace: 'nowrap' },
+      onClick: async () => {
+        const name = nameInput.value.trim();
+        if (!name) { nameInput.focus(); return; }
+        saveBtn.textContent = '...'; saveBtn.disabled = true;
+        try {
+          await api.createTagType({ name, color: colorInput.value, fg_color: '#ffffff', has_bg: true, icon: '' });
+          showToast(`Tag type "${name}" created`, 'success');
+          await this._reloadAndRefreshTagSelector(containerId, selectedIds, onToggle);
+        } catch (err) {
+          showToast(err.message, 'error');
+          saveBtn.textContent = 'Create'; saveBtn.disabled = false;
+        }
+      }
+    }, 'Create');
+    const cancelBtn = createElement('button', {
+      type: 'button', className: 'btn btn-secondary btn-sm',
+      style: { height: '32px', padding: '0 10px', fontSize: '0.75rem' },
+      onClick: () => form.remove()
+    }, 'Cancel');
+
+    const form = createElement('div', { className: 'inline-tag-form' },
+      createElement('div', { style: { fontSize: '0.7rem', color: 'var(--text-tertiary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.32px' } }, 'Create a new tag type'),
+      createElement('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
+        nameInput, colorInput, saveBtn, cancelBtn
+      )
+    );
+
+    container.innerHTML = '';
+    container.appendChild(form);
+    setTimeout(() => nameInput.focus(), 50);
+
+    nameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); saveBtn.click(); }
+      if (e.key === 'Escape') { form.remove(); }
+    });
+  }
+
+  async _reloadAndRefreshTagSelector(containerId, selectedIds, onToggle) {
+    try {
+      const tagData = await api.getTagTypes();
+      this.tagTypes = tagData.tag_types || [];
+    } catch (err) { console.error('Failed to reload tags:', err); }
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const newSelector = this._renderTagSelector(containerId, selectedIds, onToggle);
+    container.replaceWith(newSelector);
+    // Also refresh the preview
+    if (containerId === 'task-tags') this._renderTagsPreview();
   }
 
   _refreshTagSelector(containerId, selectedIds) {

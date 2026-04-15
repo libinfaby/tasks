@@ -11,7 +11,7 @@ export function renderLogin(container, onSuccess) {
   const loginContainer = createElement('div', { className: 'login-container' },
     createElement('div', { className: 'login-card' },
       createElement('div', { className: 'login-logo' },
-        createElement('h1', {}, 'Tasks'),
+        createElement('img', { src: 'logo.svg', alt: 'tasks', className: 'login-logo-img' }),
         createElement('p', {}, 'Personal Task Manager')
       ),
       createElement('div', { className: 'login-error', id: 'login-error' }),
