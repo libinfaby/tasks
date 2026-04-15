@@ -73,12 +73,11 @@ export class TagManager {
       type_fg_color: type.fg_color,
       type_has_bg: type.has_bg
     });
-    return createElement('span', { className: 'tag-chip tag-chip-editable', style },
+    return createElement('span', {
+      className: 'tag-chip tag-chip-editable', style,
+      onClick: () => this._editTag(tag, type, root)
+    },
       tag.name,
-      createElement('button', { className: 'tag-edit', style: { color: style.color }, onClick: (e) => {
-        e.stopPropagation();
-        this._editTag(tag, type, root);
-      }}, ' Edit'),
       createElement('button', { className: 'tag-remove', style: { color: style.color }, onClick: async (e) => {
         e.stopPropagation();
         if (confirm(`Delete tag "${tag.name}"?`)) {

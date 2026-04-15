@@ -1439,7 +1439,6 @@ textarea.form-input {
 
 .tag-type-body .tag-chip.tag-chip-editable { cursor: pointer; }
 
-.tag-type-body .tag-chip .tag-edit,
 .tag-type-body .tag-chip .tag-remove {
   cursor: pointer;
   opacity: 0;
@@ -1452,13 +1451,8 @@ textarea.form-input {
   letter-spacing: 0.16px;
 }
 
-.tag-type-body .tag-chip.tag-chip-editable:hover .tag-edit,
 .tag-type-body .tag-chip.tag-chip-editable:hover .tag-remove {
   opacity: 0.6;
-}
-
-.tag-type-body .tag-chip .tag-edit:hover {
-  opacity: 1 !important;
 }
 
 .tag-type-body .tag-chip .tag-remove:hover {
