@@ -842,7 +842,7 @@ input, textarea, select {
   gap: 4px;
   padding: 0 var(--space-sm);
   height: 24px;                        /* Carbon: $spacing-06 tag height */
-  border-radius: 0;
+  border-radius: 2px;
   font-size: 0.75rem;
   font-weight: 400;
   letter-spacing: 0.32px;
