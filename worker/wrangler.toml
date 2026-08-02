@@ -12,6 +12,12 @@ database_name = "tasks-db"
 database_id = "df7676db-0acc-4c23-be8f-5cbeccb5e90a"
 migrations_dir = "migrations"
 
+[triggers]
+crons = ["* * * * *"]
+
 [vars]
 ALLOWED_ORIGIN = "https://tasks.libinfaby.dev"
 JWT_EXPIRY = "7d"
+VAPID_PUBLIC_KEY = "BM9oz6TpvH1o-bd-A7McUJ8gD9oIHJWeUQu0OsXhzLw4So8LwYDhNmvy5YvOV1kqVX5ddLGf-nfINC0ttQpE0fg"
+VAPID_PRIVATE_KEY = "JuBTfuRXlMPg6kVL_TQWrfo9xwrxUh5Rrlfpk_CD55g"
+VAPID_SUBJECT = "mailto:admin@libinfaby.dev"

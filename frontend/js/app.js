@@ -149,6 +149,66 @@ class App {
 
     // Navigate to default view
     this.navigate('all');
+
+    // Register Push Notifications
+    this.initPushNotifications().catch(err => console.error('Failed to init push notifications:', err));
+  }
+
+  async initPushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.warn('Push messaging is not supported in this browser');
+      return;
+    }
+    try {
+      const registration = await navigator.serviceWorker.register('sw.js');
+      console.log('Service Worker registered with scope:', registration.scope);
+
+      // Request notification permission if not already granted
+      if (Notification.permission === 'default') {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          console.log('Notification permission denied');
+          return;
+        }
+      }
+
+      if (Notification.permission === 'granted') {
+        let subscription = await registration.pushManager.getSubscription();
+        
+        // If no subscription exists, subscribe the user
+        if (!subscription) {
+          const vapidPublicKey = 'BM9oz6TpvH1o-bd-A7McUJ8gD9oIHJWeUQu0OsXhzLw4So8LwYDhNmvy5YvOV1kqVX5ddLGf-nfINC0ttQpE0fg';
+          const convertedKey = this.urlBase64ToUint8Array(vapidPublicKey);
+          
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: convertedKey
+          });
+          
+          // Send subscription to backend
+          await api.request('/tasks/subscribe', {
+            method: 'POST',
+            body: JSON.stringify(subscription)
+          });
+          console.log('Successfully subscribed to Web Push notifications');
+        }
+      }
+    } catch (err) {
+      console.error('Error during push notification subscription:', err);
+    }
+  }
+
+  urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+      .replace(/\-/g, '+')
+      .replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
   }
 
   async navigate(view) {

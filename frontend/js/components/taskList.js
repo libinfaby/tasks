@@ -4,7 +4,7 @@
 import { api } from '../api.js';
 import {
   createElement, showToast, formatDate, isOverdue, isToday,
-  getChipStyle, getPriorityLabel, getPriorityClass,
+  getChipStyle, getPriorityLabel, getPriorityClass, formatReminder,
 } from '../utils.js';
 import { TaskForm } from './taskForm.js';
 
@@ -85,7 +85,7 @@ export class TaskList {
           // Top Row: Priority, Group and Actions
           this._renderTopMetaRow(task),
 
-          // Title Row: Title + Date/Deadline
+          // Title Row: Title + Date/Reminder
           createElement('div', {
             className: 'task-title-row',
             style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '24px' }
@@ -138,8 +138,8 @@ export class TaskList {
       const dc = isOverdue(task.date) ? 'overdue' : (isToday(task.date) ? 'today' : '');
       items.push(createElement('span', { className: `task-date ${dc}`, style: { color: 'inherit', fontSize: '0.75rem', whiteSpace: 'nowrap' } }, formatDate(task.date)));
     }
-    if (task.deadline) {
-      items.push(createElement('span', { className: 'task-deadline', style: { color: 'inherit', fontSize: '0.75rem', whiteSpace: 'nowrap' } }, `• ${formatDate(task.deadline)}`));
+    if (task.reminder) {
+      items.push(createElement('span', { className: 'task-deadline', style: { color: 'inherit', fontSize: '0.75rem', whiteSpace: 'nowrap' } }, `• ${formatReminder(task.reminder)}`));
     }
     if (items.length === 0) return null;
     return createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', height: '24px', flexShrink: '0' } }, ...items);

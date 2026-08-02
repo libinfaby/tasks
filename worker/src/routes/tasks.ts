@@ -73,7 +73,7 @@ taskRoutes.get('/', async (c) => {
       tagSubQuery += `)`;
       query += ` AND ${tagSubQuery}`;
     } else if (searchType === 'date') {
-      query += ` AND (t.date LIKE ? OR t.deadline LIKE ?)`;
+      query += ` AND (t.date LIKE ? OR t.reminder LIKE ?)`;
       params.push(`%${search}%`, `%${search}%`);
     } else {
       query += ` AND (t.title LIKE ? OR t.details LIKE ?)`;
@@ -186,7 +186,7 @@ taskRoutes.post('/', async (c) => {
 
   try {
     const body = await c.req.json();
-    const { title, details, priority, date, deadline, group_id, subtasks, tag_ids } = body;
+    const { title, details, priority, date, reminder, group_id, subtasks, tag_ids } = body;
 
     if (!title || title.trim() === '') {
       return c.json({ error: 'Title is required' }, 400);
@@ -199,14 +199,14 @@ taskRoutes.post('/', async (c) => {
     const nextPos = (posResult as any)?.[0]?.next_pos || 0;
 
     const result = await db.prepare(
-      `INSERT INTO tasks (title, details, priority, date, deadline, group_id, position) 
+      `INSERT INTO tasks (title, details, priority, date, reminder, group_id, position) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       title.trim(),
       details?.trim() || null,
       priority || 0,
       date || null,
-      deadline || null,
+      reminder || null,
       group_id || null,
       nextPos
     ).run();
@@ -255,12 +255,17 @@ taskRoutes.put('/:id', async (c) => {
 
   try {
     const body = await c.req.json();
-    const { title, details, priority, date, deadline, group_id, position, tag_ids } = body;
+    const { title, details, priority, date, reminder, group_id, position, tag_ids } = body;
 
     // Check task exists
-    const { results: existing } = await db.prepare('SELECT id FROM tasks WHERE id = ?').bind(id).all();
+    const { results: existing } = await db.prepare('SELECT id, reminder, is_notified FROM tasks WHERE id = ?').bind(id).all();
     if (!existing || existing.length === 0) {
       return c.json({ error: 'Task not found' }, 404);
+    }
+    const current = existing[0] as any;
+    let newIsNotified = current.is_notified;
+    if (reminder !== undefined && reminder !== current.reminder) {
+      newIsNotified = 0;
     }
 
     await db.prepare(
@@ -269,7 +274,8 @@ taskRoutes.put('/:id', async (c) => {
         details = ?,
         priority = COALESCE(?, priority),
         date = ?,
-        deadline = ?,
+        reminder = ?,
+        is_notified = ?,
         group_id = ?,
         position = COALESCE(?, position),
         updated_at = datetime('now')
@@ -279,7 +285,8 @@ taskRoutes.put('/:id', async (c) => {
       details !== undefined ? (details?.trim() || null) : null,
       priority !== undefined ? priority : null,
       date !== undefined ? (date || null) : null,
-      deadline !== undefined ? (deadline || null) : null,
+      reminder !== undefined ? (reminder || null) : null,
+      newIsNotified,
       group_id !== undefined ? (group_id || null) : null,
       position !== undefined ? position : null,
       id
@@ -337,5 +344,39 @@ taskRoutes.patch('/:id/toggle', async (c) => {
   } catch (error) {
     console.error('Error toggling task:', error);
     return c.json({ error: 'Failed to toggle task' }, 500);
+  }
+});
+
+// POST /tasks/subscribe — Save a push subscription
+taskRoutes.post('/subscribe', async (c) => {
+  const db = c.env.DB;
+  try {
+    const { endpoint, keys } = await c.req.json();
+    if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
+      return c.json({ error: 'Invalid subscription object' }, 400);
+    }
+    await db.prepare(
+      'INSERT OR REPLACE INTO push_subscriptions (endpoint, p256dh, auth) VALUES (?, ?, ?)'
+    ).bind(endpoint, keys.p256dh, keys.auth).run();
+    return c.json({ message: 'Subscribed successfully' });
+  } catch (error: any) {
+    console.error('Error subscribing:', error);
+    return c.json({ error: error.message || 'Failed to subscribe' }, 500);
+  }
+});
+
+// POST /tasks/unsubscribe — Remove a push subscription
+taskRoutes.post('/unsubscribe', async (c) => {
+  const db = c.env.DB;
+  try {
+    const { endpoint } = await c.req.json();
+    if (!endpoint) {
+      return c.json({ error: 'Endpoint is required' }, 400);
+    }
+    await db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(endpoint).run();
+    return c.json({ message: 'Unsubscribed successfully' });
+  } catch (error: any) {
+    console.error('Error unsubscribing:', error);
+    return c.json({ error: error.message || 'Failed to unsubscribe' }, 500);
   }
 });

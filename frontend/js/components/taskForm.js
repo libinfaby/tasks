@@ -3,7 +3,7 @@
 // ============================================================
 
 import { api } from '../api.js';
-import { createElement, showToast, formatDateInput, getChipStyle } from '../utils.js';
+import { createElement, showToast, formatDateInput, formatDatetimeLocal, getChipStyle } from '../utils.js';
 
 export class TaskForm {
   constructor({ onSave, onClose }) {
@@ -62,8 +62,8 @@ export class TaskForm {
               createElement('input', { type: 'date', id: 'task-date', className: 'form-input', value: isEdit ? (formatDateInput(this.task?.date) || '') : todayStr })
             ),
             createElement('div', { className: 'form-group' },
-              createElement('label', { for: 'task-deadline' }, 'Deadline'),
-              createElement('input', { type: 'date', id: 'task-deadline', className: 'form-input', value: formatDateInput(this.task?.deadline) || '' })
+              createElement('label', { for: 'task-reminder' }, 'Reminder'),
+              createElement('input', { type: 'datetime-local', id: 'task-reminder', className: 'form-input', value: formatDatetimeLocal(this.task?.reminder) || '' })
             )
           ),
           createElement('div', { className: 'form-row' },
@@ -359,7 +359,8 @@ export class TaskForm {
     const title = document.getElementById('task-title')?.value?.trim();
     const details = document.getElementById('task-details')?.value?.trim();
     const date = document.getElementById('task-date')?.value || null;
-    const deadline = document.getElementById('task-deadline')?.value || null;
+    const reminderVal = document.getElementById('task-reminder')?.value || null;
+    const reminder = reminderVal ? new Date(reminderVal).toISOString() : null;
     const priority = parseInt(document.getElementById('task-priority')?.value || '0');
     const groupId = document.getElementById('task-group')?.value || null;
     if (!title) { showToast('Title is required', 'error'); document.getElementById('task-title')?.focus(); return; }
@@ -375,7 +376,7 @@ export class TaskForm {
     const saveBtn = document.getElementById('task-save-btn');
     if (saveBtn) { saveBtn.textContent = 'Saving...'; saveBtn.disabled = true; }
     try {
-      const taskData = { title, details: details || null, date, deadline, priority, group_id: groupId ? parseInt(groupId) : null, tag_ids: [...this.selectedTagIds] };
+      const taskData = { title, details: details || null, date, reminder, priority, group_id: groupId ? parseInt(groupId) : null, tag_ids: [...this.selectedTagIds] };
       if (this.task) {
         await api.updateTask(this.task.id, taskData);
         const oldIds = (this.task.subtasks || []).map(s => s.id); const newIds = subtasks.filter(s => s.id).map(s => s.id);
