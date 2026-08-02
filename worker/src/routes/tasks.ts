@@ -72,6 +72,9 @@ taskRoutes.get('/', async (c) => {
       
       tagSubQuery += `)`;
       query += ` AND ${tagSubQuery}`;
+    } else if (searchType === 'date') {
+      query += ` AND (t.date LIKE ? OR t.deadline LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`);
     } else {
       query += ` AND (t.title LIKE ? OR t.details LIKE ?)`;
       params.push(`%${search}%`, `%${search}%`);

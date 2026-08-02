@@ -35,6 +35,8 @@ export class TaskForm {
   _render() {
     document.querySelector('.modal-overlay')?.remove();
     const isEdit = !!this.task;
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const overlay = createElement('div', {
       className: 'modal-overlay', id: 'task-modal-overlay',
       onClick: (e) => { if (e.target === overlay) this.close(); }
@@ -57,7 +59,7 @@ export class TaskForm {
           createElement('div', { className: 'form-row' },
             createElement('div', { className: 'form-group' },
               createElement('label', { for: 'task-date' }, 'Date'),
-              createElement('input', { type: 'date', id: 'task-date', className: 'form-input', value: formatDateInput(this.task?.date) || '' })
+              createElement('input', { type: 'date', id: 'task-date', className: 'form-input', value: isEdit ? (formatDateInput(this.task?.date) || '') : todayStr })
             ),
             createElement('div', { className: 'form-group' },
               createElement('label', { for: 'task-deadline' }, 'Deadline'),

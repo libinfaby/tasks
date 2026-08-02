@@ -102,6 +102,7 @@ class App {
         },
           createElement('option', { value: 'task' }, 'Task Name'),
           createElement('option', { value: 'tag' }, 'Any Tag'),
+          createElement('option', { value: 'date' }, 'Date'),
           ...searchTypeOptions
         ),
         createElement('div', { className: 'search-bar' },
@@ -112,8 +113,12 @@ class App {
             placeholder: 'Search...',
             onInput: debounce((e) => {
               const selectVal = document.getElementById('search-type-select').value;
-              const isTask = selectVal === 'task';
-              const searchType = isTask ? 'task' : 'tag';
+              let searchType = 'task';
+              if (selectVal === 'tag' || selectVal.startsWith('tag_')) {
+                searchType = 'tag';
+              } else if (selectVal === 'date') {
+                searchType = 'date';
+              }
               const tagTypeId = selectVal.startsWith('tag_') ? selectVal.split('_')[1] : null;
               this.taskList.setSearch(e.target.value, searchType, tagTypeId);
               this.refreshContent();
