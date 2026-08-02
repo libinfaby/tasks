@@ -1,12 +1,12 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import webpush from 'web-push';
 import { authRoutes } from './routes/auth';
 import { taskRoutes } from './routes/tasks';
 import { subtaskRoutes } from './routes/subtasks';
 import { tagRoutes } from './routes/tags';
 import { groupRoutes } from './routes/groups';
 import { authMiddleware } from './middleware/auth';
+import { sendPushNotification } from './utils/webpush';
 
 export type Env = {
   DB: D1Database;
@@ -70,30 +70,28 @@ export default {
   fetch: app.fetch,
   async scheduled(event: any, env: Env, ctx: any) {
     const db = env.DB;
-    webpush.setVapidDetails(
-      env.VAPID_SUBJECT,
-      env.VAPID_PUBLIC_KEY,
-      env.VAPID_PRIVATE_KEY
-    );
-
-    // Current time in UTC ISO format
     const nowStr = new Date().toISOString();
+    console.log(`[CRON] Running at ${nowStr}`);
 
     try {
-      // Find active tasks with active reminders that are due and not yet notified
+      // Find active tasks with reminders that are due and not yet notified
       const { results: tasksToNotify } = await db.prepare(
         'SELECT * FROM tasks WHERE is_completed = 0 AND reminder IS NOT NULL AND is_notified = 0 AND reminder <= ?'
       ).bind(nowStr).all();
 
       if (!tasksToNotify || tasksToNotify.length === 0) {
+        console.log('[CRON] No tasks to notify');
         return;
       }
+      console.log(`[CRON] Found ${tasksToNotify.length} task(s) to notify`);
 
       // Get all push subscriptions
       const { results: subscriptions } = await db.prepare('SELECT * FROM push_subscriptions').all();
       if (!subscriptions || subscriptions.length === 0) {
+        console.log('[CRON] No push subscriptions registered');
         return;
       }
+      console.log(`[CRON] Sending to ${subscriptions.length} subscription(s)`);
 
       for (const task of tasksToNotify as any[]) {
         const payload = JSON.stringify({
@@ -101,24 +99,33 @@ export default {
           body: task.details || 'Task reminder!'
         });
 
-        // Send to all subscriptions
         const sendPromises = (subscriptions as any[]).map(async (sub) => {
           const pushSubscription = {
             endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth
-            }
+            keys: { p256dh: sub.p256dh, auth: sub.auth }
           };
 
           try {
-            await webpush.sendNotification(pushSubscription, payload);
-          } catch (err: any) {
-            console.error('Failed to send push notification to endpoint:', sub.endpoint, err);
-            // Delete subscription if expired/gone
-            if (err.statusCode === 410 || err.statusCode === 404) {
-              await db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(sub.endpoint).run();
+            const response = await sendPushNotification(
+              pushSubscription,
+              payload,
+              env.VAPID_SUBJECT,
+              env.VAPID_PUBLIC_KEY,
+              env.VAPID_PRIVATE_KEY
+            );
+
+            if (!response.ok) {
+              const body = await response.text();
+              console.error(`[CRON] Push failed (${response.status}):`, body);
+              // Delete subscription if expired/gone
+              if (response.status === 410 || response.status === 404) {
+                await db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(sub.endpoint).run();
+              }
+            } else {
+              console.log(`[CRON] Push sent successfully for task ${task.id}`);
             }
+          } catch (err: any) {
+            console.error('[CRON] Failed to send push:', err.message || err);
           }
         });
 
@@ -128,7 +135,7 @@ export default {
         await db.prepare('UPDATE tasks SET is_notified = 1 WHERE id = ?').bind(task.id).run();
       }
     } catch (err) {
-      console.error('Scheduled cron trigger failed:', err);
+      console.error('[CRON] Scheduled trigger failed:', err);
     }
   }
 };
