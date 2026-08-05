@@ -28,7 +28,7 @@ export class Sidebar {
     const sidebar = createElement('aside', { className: 'sidebar', id: 'sidebar' },
       // Header
       createElement('div', { className: 'sidebar-header' },
-        createElement('img', { src: 'circle.png', alt: 'tasks', className: 'sidebar-logo' })
+        createElement('img', { src: 'logo.png', alt: 'tasks', className: 'sidebar-logo' })
       ),
 
       // Navigation
