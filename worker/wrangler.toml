@@ -3,8 +3,8 @@ main = "src/index.ts"
 compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Custom domain - uncomment after first deploy and creating the domain in Cloudflare
-# route = { pattern = "tasks-api.libinfaby.dev/*", custom_domain = true }
+# Custom domain (must stay set, or deploys remove it from the live worker)
+route = { pattern = "tasks-api.libinfaby.dev", custom_domain = true }
 
 [[d1_databases]]
 binding = "DB"
