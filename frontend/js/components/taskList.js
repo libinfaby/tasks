@@ -11,7 +11,7 @@ import { TaskForm } from './taskForm.js';
 export class TaskList {
   constructor({ onRefreshSidebar }) { this.tasks = []; this.filters = {}; this.view = 'all'; this.groupFilter = null; this.searchQuery = ''; this.taskForm = null; this.onRefreshSidebar = onRefreshSidebar; }
   setView(view) { this.view = view; this.groupFilter = null; this.filters = this._getFiltersForView(view); }
-  setGroupFilter(group) { this.view = 'group'; this.groupFilter = group; this.filters = { group_id: group.id }; }
+  setGroupFilter(group) { this.view = 'group'; this.groupFilter = group; this.filters = { group_id: group.id, completed: 'false' }; }
   setSearch(query, type = 'task', tagTypeId = null) {
     this.searchQuery = query;
     if (query) { this.filters.search = query; this.filters.search_type = type; if (tagTypeId) this.filters.search_tag_type = tagTypeId; else delete this.filters.search_tag_type; }
@@ -20,7 +20,8 @@ export class TaskList {
   setTagFilter(tagId) { if (tagId) this.filters.tag_id = tagId; else delete this.filters.tag_id; const dd = document.getElementById('tag-filter'); if (dd) dd.value = tagId || ''; }
   _getFiltersForView(view) {
     const today = new Date().toISOString().split('T')[0]; const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
-    switch (view) { case 'today': return { date_from: today, date_to: today }; case 'upcoming': return { date_from: today, date_to: nextWeek, completed: 'false' }; case 'priority': return { completed: 'false' }; case 'completed': return { completed: 'true' }; default: return {}; }
+    // Only active tasks by default; completed ones are shown via the Completed view or chip
+    switch (view) { case 'today': return { date_from: today, date_to: today, completed: 'false' }; case 'upcoming': return { date_from: today, date_to: nextWeek, completed: 'false' }; case 'priority': return { completed: 'false' }; case 'completed': return { completed: 'true' }; default: return { completed: 'false' }; }
   }
   async loadTasks() { try { const data = await api.getTasks(this.filters); this.tasks = data.tasks || []; if (this.view === 'priority') this.tasks = this.tasks.filter(t => t.priority > 0); } catch (err) { showToast(err.message, 'error'); this.tasks = []; } }
   getViewTitle() { switch (this.view) { case 'all': return 'All Tasks'; case 'today': return 'Today'; case 'upcoming': return 'Upcoming'; case 'priority': return 'Priority'; case 'completed': return 'Completed'; case 'group': return this.groupFilter?.name || 'Group'; default: return 'Tasks'; } }
@@ -28,7 +29,7 @@ export class TaskList {
     container.innerHTML = '';
     const fb = createElement('div', { className: 'filter-bar' },
       this._filterChip('All', this.view === 'all' && !this.groupFilter, () => { this.setView('all'); this.refresh(container); }),
-      this._filterChip('Active', this.filters.completed === 'false', () => { this.filters.completed = this.filters.completed === 'false' ? '' : 'false'; this.refresh(container); }),
+      this._filterChip('Completed', this.filters.completed === 'true', () => { this.filters.completed = this.filters.completed === 'true' ? 'false' : 'true'; this.refresh(container); }),
       this._filterChip('Urgent', this.filters.priority === '2', () => { this.filters.priority = this.filters.priority === '2' ? '' : '2'; this.refresh(container); }),
       this._filterChip('High', this.filters.priority === '1', () => { this.filters.priority = this.filters.priority === '1' ? '' : '1'; this.refresh(container); }),
       ...(this.filters.tag_id ? [this._filterChip('Tag Filter Active', true, () => { this.setTagFilter(''); this.refresh(container); })] : [])
