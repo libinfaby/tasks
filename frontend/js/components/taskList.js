@@ -67,7 +67,7 @@ export class TaskList {
       className: `task-card priority-${task.priority}${task.is_completed ? ' completed' : ''}`,
       onClick: (e) => { if (e.target.closest('.task-checkbox') || e.target.closest('.task-action-btn') || e.target.closest('.subtask-item .task-checkbox')) return; this._editTask(task); },
     },
-      createElement('div', { className: 'task-card-header', style: { padding: '6px 12px', display: 'flex', gap: '10px', alignItems: 'flex-start' } },
+      createElement('div', { className: 'task-card-header', style: { padding: '12px 16px', display: 'flex', gap: '12px', alignItems: 'flex-start' } },
         // Checkbox
         createElement('label', {
           className: 'task-checkbox',
@@ -83,7 +83,7 @@ export class TaskList {
           // Single row: priority, group, title, date/reminder, hover actions
           createElement('div', {
             className: 'task-title-row',
-            style: { display: 'flex', alignItems: 'center', gap: '8px', minHeight: '24px' }
+            style: { display: 'flex', alignItems: 'center', gap: '8px', minHeight: '26px' }
           },
             ...this._renderBadges(task),
             createElement('div', { className: 'task-title', title: task.title, style: { flex: 1, minWidth: 0, marginBottom: '0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, task.title),
@@ -91,7 +91,7 @@ export class TaskList {
             this._renderActions(task)
           ),
 
-          task.details ? createElement('div', { className: 'task-details', style: { marginTop: '0' } }, task.details) : null,
+          task.details ? createElement('div', { className: 'task-details', style: { marginTop: '4px' } }, task.details) : null,
           this._renderMetaRow(task),
           totalSubtasks > 0 ? this._renderSubtasks(task) : null,
         )
@@ -147,7 +147,7 @@ export class TaskList {
     const subtasks = task.subtasks || [];
     if (tags.length === 0 && subtasks.length === 0) return null;
     const done = subtasks.filter(s => s.is_completed).length;
-    return createElement('div', { className: 'tag-list', style: { marginTop: '2px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px' } },
+    return createElement('div', { className: 'tag-list', style: { marginTop: '8px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' } },
       ...tags.map(tag => {
         const style = getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: tag.type_color, type_fg_color: tag.type_fg_color, type_has_bg: tag.type_has_bg });
         return createElement('span', {
@@ -164,9 +164,9 @@ export class TaskList {
 
   _renderSubtasks(task) {
     const subtasks = task.subtasks || [];
-    const container = createElement('div', { className: 'subtask-preview', style: { marginTop: '4px', paddingTop: '0', borderTop: 'none', borderLeft: '2px solid var(--border-color)', paddingLeft: '8px' } });
+    const container = createElement('div', { className: 'subtask-preview', style: { marginTop: '10px', paddingTop: '0', borderTop: 'none', borderLeft: '2px solid var(--border-color)', paddingLeft: '12px' } });
     subtasks.forEach(s => {
-      const item = createElement('div', { className: `subtask-item${s.is_completed ? ' completed' : ''}`, style: { display: 'flex', alignItems: 'center', gap: '6px', padding: '0', minHeight: '20px' } },
+      const item = createElement('div', { className: `subtask-item${s.is_completed ? ' completed' : ''}`, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '2px 0', minHeight: '24px' } },
         createElement('label', { className: 'task-checkbox', style: { transform: 'scale(0.75)', flexShrink: '0', margin: '-2px' }, onClick: (e) => e.stopPropagation() }, createElement('input', { type: 'checkbox', ...(s.is_completed ? { checked: 'true' } : {}), onChange: () => this._toggleSubtask(s) }), createElement('span', { className: 'checkmark' })),
         createElement('span', { className: 'subtask-title', style: { fontSize: '0.75rem' } }, s.title)
       );

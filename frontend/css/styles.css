@@ -610,7 +610,7 @@ input, textarea, select {
 .task-list {
   display: flex;
   flex-direction: column;
-  gap: 1px;                             /* Carbon: tile rows share borders */
+  gap: 8px;                             /* Carbon: tile rows share borders */
 }
 
 /* Carbon Tile — flat, bordered, no shadow at rest */
@@ -740,7 +740,7 @@ input, textarea, select {
   line-height: 1.4;
   letter-spacing: 0.32px;
   display: -webkit-box;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
