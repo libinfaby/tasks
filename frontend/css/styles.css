@@ -501,6 +501,9 @@ input, textarea, select {
 
 .search-bar input::placeholder { color: var(--text-tertiary); }
 
+/* Date search: keep the native picker icon visible on the dark theme */
+.search-bar input[type="date"] { color-scheme: dark; }
+
 .search-bar input:focus {
   background: var(--bg-tertiary);
   border-bottom-color: var(--accent);
@@ -615,7 +618,7 @@ input, textarea, select {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 0;
-  padding: var(--space-md);
+  padding: 0;
   transition: background var(--transition-fast), border-color var(--transition-fast);
   cursor: pointer;
   position: relative;
@@ -733,11 +736,11 @@ input, textarea, select {
 .task-details {
   font-size: 0.75rem;
   color: var(--text-secondary);
-  margin-top: var(--space-xs);
-  line-height: 1.5;
+  margin-top: 0;
+  line-height: 1.4;
   letter-spacing: 0.32px;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
