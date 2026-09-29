@@ -610,7 +610,7 @@ input, textarea, select {
 .task-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;                             /* Carbon: tile rows share borders */
+  gap: 1px;                             /* Carbon: tile rows share borders */
 }
 
 /* Carbon Tile — flat, bordered, no shadow at rest */
@@ -618,7 +618,7 @@ input, textarea, select {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 0;
-  padding: 0;
+  padding: var(--space-md);
   transition: background var(--transition-fast), border-color var(--transition-fast);
   cursor: pointer;
   position: relative;
@@ -736,8 +736,8 @@ input, textarea, select {
 .task-details {
   font-size: 0.75rem;
   color: var(--text-secondary);
-  margin-top: 0;
-  line-height: 1.4;
+  margin-top: var(--space-xs);
+  line-height: 1.5;
   letter-spacing: 0.32px;
   display: -webkit-box;
   -webkit-line-clamp: 2;

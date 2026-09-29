@@ -68,64 +68,68 @@ export class TaskList {
       onClick: (e) => { if (e.target.closest('.task-checkbox') || e.target.closest('.task-action-btn') || e.target.closest('.subtask-item .task-checkbox')) return; this._editTask(task); },
     },
       createElement('div', { className: 'task-card-header', style: { padding: '12px 16px', display: 'flex', gap: '12px', alignItems: 'flex-start' } },
-        // Checkbox
-        createElement('label', {
-          className: 'task-checkbox',
-          onClick: (e) => e.stopPropagation(),
-          style: { marginTop: '2px', flexShrink: '0' }
-        },
-          createElement('input', { type: 'checkbox', ...(task.is_completed ? { checked: 'true' } : {}), onChange: () => this._toggleTask(task) }),
-          createElement('span', { className: 'checkmark' })
+        // Checkbox Container
+        createElement('div', { style: { width: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: '0', marginRight: '12px' } },
+          createElement('label', {
+            className: 'task-checkbox',
+            onClick: (e) => e.stopPropagation(),
+            style: { marginTop: '26px' }
+          },
+            createElement('input', { type: 'checkbox', ...(task.is_completed ? { checked: 'true' } : {}), onChange: () => this._toggleTask(task) }),
+            createElement('span', { className: 'checkmark' })
+          )
         ),
 
         // Body
         createElement('div', { className: 'task-card-body', style: { flex: 1, minWidth: 0 } },
-          // Single row: priority, group, title, date/reminder, hover actions
+          // Top Row: Priority, Group and Actions
+          this._renderTopMetaRow(task),
+
+          // Title Row: Title + Date/Reminder
           createElement('div', {
             className: 'task-title-row',
-            style: { display: 'flex', alignItems: 'center', gap: '8px', minHeight: '26px' }
+            style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '24px' }
           },
-            ...this._renderBadges(task),
-            createElement('div', { className: 'task-title', title: task.title, style: { flex: 1, minWidth: 0, marginBottom: '0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, task.title),
-            this._renderDateMeta(task),
-            this._renderActions(task)
+            createElement('div', { className: 'task-title', style: { flex: 1 } }, task.title),
+            this._renderDateMeta(task)
           ),
 
           task.details ? createElement('div', { className: 'task-details', style: { marginTop: '4px' } }, task.details) : null,
-          this._renderMetaRow(task),
+          this._renderTags(task.tags),
           totalSubtasks > 0 ? this._renderSubtasks(task) : null,
         )
       )
     );
   }
 
-  _renderBadges(task) {
-    const items = [];
+  _renderTopMetaRow(task) {
+    const leftItems = [];
     if (task.priority > 0) {
       const cls = getPriorityClass(task.priority);
-      items.push(createElement('span', {
+      leftItems.push(createElement('span', {
         className: `priority-badge ${cls}`,
-        style: { border: 'none', fontWeight: '600', flexShrink: '0' }
+        style: { border: 'none', fontWeight: '600' }
       }, getPriorityLabel(task.priority)));
     }
     if (task.group && this.view !== 'group') {
       const style = getChipStyle(task.group);
-      items.push(createElement('span', {
+      leftItems.push(createElement('span', {
         className: 'tag-chip group-tag',
-        style: { ...style, border: 'none', flexShrink: '0' }
+        style: { ...style, border: 'none' } // Solid from getChipStyle, border radius from CSS
       }, task.group.name));
     }
-    return items;
-  }
 
-  _renderActions(task) {
-    return createElement('div', {
+    const actions = createElement('div', {
       className: 'task-card-actions',
-      style: { display: 'flex', alignItems: 'center', flexShrink: '0' }
+      style: { marginLeft: 'auto', display: 'flex', alignItems: 'center', height: '22px' }
     },
-      createElement('button', { className: 'task-action-btn', style: { padding: '2px 6px' }, onClick: (e) => { e.stopPropagation(); this._editTask(task); } }, 'Edit'),
-      createElement('button', { className: 'task-action-btn delete', style: { padding: '2px 6px' }, onClick: (e) => { e.stopPropagation(); this._deleteTask(task); } }, 'Delete'),
+      createElement('button', { className: 'task-action-btn', onClick: (e) => { e.stopPropagation(); this._editTask(task); } }, 'Edit'),
+      createElement('button', { className: 'task-action-btn delete', onClick: (e) => { e.stopPropagation(); this._deleteTask(task); } }, 'Delete'),
     );
+
+    return createElement('div', {
+      style: { display: 'flex', alignItems: 'center', marginBottom: '4px', gap: '8px' }
+    }, ...leftItems, actions);
   }
 
   _renderDateMeta(task) {
@@ -138,16 +142,12 @@ export class TaskList {
       items.push(createElement('span', { className: 'task-deadline', style: { color: 'inherit', fontSize: '0.75rem', whiteSpace: 'nowrap' } }, `• ${formatReminder(task.reminder)}`));
     }
     if (items.length === 0) return null;
-    return createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexShrink: '0' } }, ...items);
+    return createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', height: '24px', flexShrink: '0' } }, ...items);
   }
 
-  // Tags and subtask progress share one compact row
-  _renderMetaRow(task) {
-    const tags = task.tags || [];
-    const subtasks = task.subtasks || [];
-    if (tags.length === 0 && subtasks.length === 0) return null;
-    const done = subtasks.filter(s => s.is_completed).length;
-    return createElement('div', { className: 'tag-list', style: { marginTop: '8px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' } },
+  _renderTags(tags) {
+    if (!tags || tags.length === 0) return null;
+    return createElement('div', { className: 'tag-list', style: { marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' } },
       ...tags.map(tag => {
         const style = getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: tag.type_color, type_fg_color: tag.type_fg_color, type_has_bg: tag.type_has_bg });
         return createElement('span', {
@@ -157,17 +157,17 @@ export class TaskList {
         },
           createElement('span', { className: 'tag-type-label' }, `${tag.type_name || 'Tag'}:`), ` ${tag.name}`
         );
-      }),
-      subtasks.length > 0 ? createElement('span', { className: 'subtask-progress-text', style: { marginLeft: 'auto' } }, `${done}/${subtasks.length}`) : null
+      })
     );
   }
 
   _renderSubtasks(task) {
-    const subtasks = task.subtasks || [];
-    const container = createElement('div', { className: 'subtask-preview', style: { marginTop: '10px', paddingTop: '0', borderTop: 'none', borderLeft: '2px solid var(--border-color)', paddingLeft: '12px' } });
+    const subtasks = task.subtasks || []; const completed = subtasks.filter(s => s.is_completed).length; const total = subtasks.length; const pct = total > 0 ? (completed / total) * 100 : 0;
+    const container = createElement('div', { className: 'subtask-preview', style: { marginTop: '12px', borderLeft: '2px solid var(--border-color)', paddingLeft: '12px' } },
+      createElement('div', { className: 'subtask-progress', style: { marginBottom: '8px' } }, createElement('div', { className: 'subtask-progress-bar' }, createElement('div', { className: 'subtask-progress-fill', style: { width: `${pct}%` } })), createElement('span', { className: 'subtask-progress-text' }, `${completed}/${total}`)));
     subtasks.forEach(s => {
-      const item = createElement('div', { className: `subtask-item${s.is_completed ? ' completed' : ''}`, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '2px 0', minHeight: '24px' } },
-        createElement('label', { className: 'task-checkbox', style: { transform: 'scale(0.75)', flexShrink: '0', margin: '-2px' }, onClick: (e) => e.stopPropagation() }, createElement('input', { type: 'checkbox', ...(s.is_completed ? { checked: 'true' } : {}), onChange: () => this._toggleSubtask(s) }), createElement('span', { className: 'checkmark' })),
+      const item = createElement('div', { className: `subtask-item${s.is_completed ? ' completed' : ''}`, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '2px 0' } },
+        createElement('label', { className: 'task-checkbox', style: { transform: 'scale(0.8)', flexShrink: '0' }, onClick: (e) => e.stopPropagation() }, createElement('input', { type: 'checkbox', ...(s.is_completed ? { checked: 'true' } : {}), onChange: () => this._toggleSubtask(s) }), createElement('span', { className: 'checkmark' })),
         createElement('span', { className: 'subtask-title', style: { fontSize: '0.75rem' } }, s.title)
       );
       container.appendChild(item);
