@@ -43,6 +43,13 @@ export class Sidebar {
           this._navItem('completed', '', 'Completed'),
         ),
 
+        // Daily log
+        createElement('div', { className: 'nav-section' },
+          createElement('div', { className: 'nav-section-title' }, 'Daily Tasks'),
+          this._navItem('daily-entry', '', 'Entry'),
+          this._navItem('daily-report', '', 'Report'),
+        ),
+
         // Groups
         createElement('div', { className: 'nav-section', id: 'sidebar-groups-section' },
           createElement('div', {

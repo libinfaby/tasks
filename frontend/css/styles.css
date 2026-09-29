@@ -1653,3 +1653,45 @@ textarea.form-input {
   clip: rect(0,0,0,0);
   border: 0;
 }
+
+/* ==================== Daily Tasks ==================== */
+.daily-wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-md); }
+
+.daily-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+.daily-date-group, .daily-toolbar-right { display: flex; align-items: center; gap: var(--space-sm); }
+.daily-date { width: 170px; color-scheme: dark; }
+.daily-label { font-size: 0.75rem; color: var(--text-tertiary); }
+.daily-count { font-size: 0.75rem; color: var(--text-tertiary); font-family: 'IBM Plex Mono', monospace; }
+.btn-icon { width: 40px; padding: 0; font-size: 1.1rem; }
+
+.daily-add { display: flex; gap: var(--space-sm); }
+
+.daily-list { display: flex; flex-direction: column; gap: 1px; }
+.daily-item {
+  display: flex; align-items: center; gap: var(--space-sm);
+  padding: 10px var(--space-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  font-size: 0.875rem; color: var(--text-primary);
+}
+.daily-item:hover { background: var(--bg-card-hover); }
+.daily-bullet { width: 6px; height: 6px; background: var(--accent); flex-shrink: 0; }
+.daily-text { flex: 1; min-width: 0; word-wrap: break-word; }
+.daily-edit { flex: 1; height: 32px; }
+.daily-actions { display: flex; gap: 2px; opacity: 0; transition: opacity var(--transition-fast); }
+.daily-item:hover .daily-actions, .daily-item:focus-within .daily-actions { opacity: 1; }
+.daily-empty { padding: var(--space-lg); text-align: center; color: var(--text-tertiary); font-size: 0.875rem; }
+
+.daily-report-list { display: flex; flex-direction: column; gap: var(--space-md); }
+.daily-day { background: var(--bg-card); border: 1px solid var(--border-color); }
+.daily-day-header { display: flex; align-items: center; gap: var(--space-md); padding: 10px var(--space-md); border-bottom: 1px solid var(--border-color); }
+.daily-day-header h3 { flex: 1; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); }
+.daily-copy { height: 32px; }
+.daily-day-list { list-style: none; margin: 0; padding: var(--space-sm) var(--space-md); }
+.daily-day-list li { position: relative; padding: 4px 0 4px 16px; font-size: 0.875rem; color: var(--text-secondary); }
+.daily-day-list li::before { content: ''; position: absolute; left: 0; top: 12px; width: 6px; height: 6px; background: var(--accent); }
+
+@media (max-width: 600px) {
+  .daily-actions { opacity: 1; }
+}
+

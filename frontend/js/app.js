@@ -10,6 +10,7 @@ import { TaskList } from './components/taskList.js';
 import { TaskForm } from './components/taskForm.js';
 import { TagManager } from './components/tagManager.js';
 import { GroupManager } from './components/groupManager.js';
+import { DailyLog } from './components/dailyLog.js';
 
 class App {
   constructor() {
@@ -18,6 +19,7 @@ class App {
     this.taskList = null;
     this.tagManager = null;
     this.groupManager = null;
+    this.dailyLog = new DailyLog();
     this.contentArea = null;
     this.currentView = 'all';
 
@@ -226,7 +228,19 @@ class App {
     const title = document.getElementById('view-title');
     const fab = document.getElementById('fab-new-task');
 
-    if (view === 'tags') {
+    // Task search only applies to the task views
+    const headerActions = document.querySelector('.header-actions');
+    if (headerActions) headerActions.style.display = view.startsWith('daily-') ? 'none' : '';
+
+    if (view === 'daily-entry') {
+      if (title) title.textContent = 'Daily Tasks — Entry';
+      if (fab) fab.style.display = 'none';
+      await this.dailyLog.renderEntry(this.contentArea);
+    } else if (view === 'daily-report') {
+      if (title) title.textContent = 'Daily Tasks — Report';
+      if (fab) fab.style.display = 'none';
+      await this.dailyLog.renderReport(this.contentArea);
+    } else if (view === 'tags') {
       if (title) title.textContent = 'Tags';
       if (fab) fab.style.display = 'none';
       await this.tagManager.render(this.contentArea);
@@ -250,6 +264,8 @@ class App {
     const title = document.getElementById('view-title');
     const fab = document.getElementById('fab-new-task');
     if (fab) fab.style.display = 'flex';
+    const headerActions = document.querySelector('.header-actions');
+    if (headerActions) headerActions.style.display = '';
 
     this.taskList.setGroupFilter(group);
     if (title) title.textContent = group.name;
@@ -258,7 +274,7 @@ class App {
   }
 
   async refreshContent() {
-    if (['tags', 'groups-manage'].includes(this.currentView)) return;
+    if (['tags', 'groups-manage', 'daily-entry', 'daily-report'].includes(this.currentView)) return;
     await this.taskList.loadTasks();
     const body = document.getElementById('task-list-body');
     if (body) this.taskList._renderTaskList(body);

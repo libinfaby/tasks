@@ -5,6 +5,7 @@ import { taskRoutes } from './routes/tasks';
 import { subtaskRoutes } from './routes/subtasks';
 import { tagRoutes } from './routes/tags';
 import { groupRoutes } from './routes/groups';
+import { dailyRoutes } from './routes/daily';
 import { authMiddleware } from './middleware/auth';
 import { sendPushNotification } from './utils/webpush';
 
@@ -50,12 +51,14 @@ app.use('/subtasks/*', authMiddleware);
 app.use('/tags/*', authMiddleware);
 app.use('/tag-types/*', authMiddleware);
 app.use('/groups/*', authMiddleware);
+app.use('/daily/*', authMiddleware);
 
 app.route('/tasks', taskRoutes);
 app.route('/subtasks', subtaskRoutes);
 app.route('/tags', tagRoutes);
 app.route('/tag-types', tagRoutes);
 app.route('/groups', groupRoutes);
+app.route('/daily', dailyRoutes);
 
 // 404 fallback
 app.notFound((c) => c.json({ error: 'Not found' }, 404));

@@ -244,6 +244,32 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // ==================== Daily Log ====================
+  async getDailyLogs(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request(`/daily${qs ? `?${qs}` : ''}`);
+  }
+
+  async createDailyLog(data) {
+    return this.request('/daily', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateDailyLog(id, data) {
+    return this.request(`/daily/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteDailyLog(id) {
+    return this.request(`/daily/${id}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new ApiClient();
