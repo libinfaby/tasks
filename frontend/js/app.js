@@ -177,7 +177,7 @@ class App {
         
         // If no subscription exists, subscribe the user
         if (!subscription) {
-          const vapidPublicKey = 'BM9oz6TpvH1o-bd-A7McUJ8gD9oIHJWeUQu0OsXhzLw4So8LwYDhNmvy5YvOV1kqVX5ddLGf-nfINC0ttQpE0fg';
+          const vapidPublicKey = 'BFVyvXzPSMJ9BZG4yw3elgHT7w6H8MTqT60eKfr2o1nIaLfmLyh_vc4C8BQ11QyLNnWdpQP-ZntIhHwrDLtiC7Y';
           const convertedKey = this.urlBase64ToUint8Array(vapidPublicKey);
           
           subscription = await registration.pushManager.subscribe({

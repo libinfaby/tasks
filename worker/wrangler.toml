@@ -18,6 +18,6 @@ crons = ["* * * * *"]
 [vars]
 ALLOWED_ORIGIN = "https://tasks.libinfaby.dev"
 JWT_EXPIRY = "7d"
-VAPID_PUBLIC_KEY = "BM9oz6TpvH1o-bd-A7McUJ8gD9oIHJWeUQu0OsXhzLw4So8LwYDhNmvy5YvOV1kqVX5ddLGf-nfINC0ttQpE0fg"
-VAPID_PRIVATE_KEY = "JuBTfuRXlMPg6kVL_TQWrfo9xwrxUh5Rrlfpk_CD55g"
+VAPID_PUBLIC_KEY = "BFVyvXzPSMJ9BZG4yw3elgHT7w6H8MTqT60eKfr2o1nIaLfmLyh_vc4C8BQ11QyLNnWdpQP-ZntIhHwrDLtiC7Y"
+# VAPID_PRIVATE_KEY is a secret: `wrangler secret put VAPID_PRIVATE_KEY` (local: worker/.dev.vars)
 VAPID_SUBJECT = "mailto:admin@libinfaby.dev"

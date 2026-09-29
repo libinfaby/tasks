@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { Env } from '../index';
+import { linkTagsStatement } from '../utils/tasks';
 
 type Variables = { userId: string };
 
@@ -23,26 +24,18 @@ subtaskRoutes.post('/', async (c) => {
       return c.json({ error: 'Task not found' }, 404);
     }
 
-    // Get next position
-    const { results: posResult } = await db.prepare(
-      'SELECT COALESCE(MAX(position), 0) + 1 as next_pos FROM subtasks WHERE task_id = ?'
-    ).bind(task_id).all();
-    const nextPos = (posResult as any)?.[0]?.next_pos || 0;
-
-    const result = await db.prepare(
-      'INSERT INTO subtasks (task_id, title, position) VALUES (?, ?, ?)'
-    ).bind(task_id, title.trim(), nextPos).run();
-
-    const subtaskId = result.meta.last_row_id;
-
-    // Add tags
-    if (tag_ids && Array.isArray(tag_ids)) {
-      for (const tagId of tag_ids) {
-        await db.prepare(
-          'INSERT OR IGNORE INTO subtask_tags (subtask_id, tag_id) VALUES (?, ?)'
-        ).bind(subtaskId, tagId).run();
-      }
+    // Insert subtask and its tags atomically
+    const stmts: D1PreparedStatement[] = [
+      db.prepare(
+        `INSERT INTO subtasks (task_id, title, position)
+         VALUES (?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM subtasks WHERE task_id = ?))`
+      ).bind(task_id, title.trim(), task_id),
+    ];
+    if (tag_ids && Array.isArray(tag_ids) && tag_ids.length > 0) {
+      stmts.push(linkTagsStatement(db, 'subtask_tags', 'SELECT MAX(id) FROM subtasks', [], tag_ids));
     }
+    const batchResults = await db.batch(stmts);
+    const subtaskId = batchResults[0].meta.last_row_id;
 
     return c.json({ id: subtaskId, message: 'Subtask created' }, 201);
   } catch (error) {
@@ -65,22 +58,24 @@ subtaskRoutes.put('/:id', async (c) => {
       return c.json({ error: 'Subtask not found' }, 404);
     }
 
-    await db.prepare(
-      `UPDATE subtasks SET 
-        title = COALESCE(?, title),
-        position = COALESCE(?, position)
-       WHERE id = ?`
-    ).bind(title?.trim() || null, position !== undefined ? position : null, id).run();
+    const stmts: D1PreparedStatement[] = [
+      db.prepare(
+        `UPDATE subtasks SET
+          title = COALESCE(?, title),
+          position = COALESCE(?, position)
+         WHERE id = ?`
+      ).bind(title?.trim() || null, position !== undefined ? position : null, id),
+    ];
 
-    // Update tags if provided
+    // Replace tags if provided
     if (tag_ids !== undefined && Array.isArray(tag_ids)) {
-      await db.prepare('DELETE FROM subtask_tags WHERE subtask_id = ?').bind(id).run();
-      for (const tagId of tag_ids) {
-        await db.prepare(
-          'INSERT OR IGNORE INTO subtask_tags (subtask_id, tag_id) VALUES (?, ?)'
-        ).bind(id, tagId).run();
+      stmts.push(db.prepare('DELETE FROM subtask_tags WHERE subtask_id = ?').bind(id));
+      if (tag_ids.length > 0) {
+        stmts.push(linkTagsStatement(db, 'subtask_tags', '?', [id], tag_ids));
       }
     }
+
+    await db.batch(stmts);
 
     return c.json({ message: 'Subtask updated' });
   } catch (error) {

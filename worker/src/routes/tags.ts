@@ -16,14 +16,21 @@ tagRoutes.get('/', async (c) => {
       'SELECT * FROM tag_types ORDER BY name ASC'
     ).all();
 
-    const enriched = await Promise.all(
-      (tagTypes || []).map(async (type: any) => {
-        const { results: tags } = await db.prepare(
-          'SELECT * FROM tags WHERE tag_type_id = ? ORDER BY name ASC'
-        ).bind(type.id).all();
-        return { ...type, tags: tags || [] };
-      })
-    );
+    const { results: allTags } = await db.prepare(
+      'SELECT * FROM tags ORDER BY name ASC'
+    ).all();
+
+    const tagsByType = new Map<number, any[]>();
+    for (const tag of (allTags || []) as any[]) {
+      const list = tagsByType.get(tag.tag_type_id) || [];
+      list.push(tag);
+      tagsByType.set(tag.tag_type_id, list);
+    }
+
+    const enriched = (tagTypes || []).map((type: any) => ({
+      ...type,
+      tags: tagsByType.get(type.id) || [],
+    }));
 
     return c.json({ tag_types: enriched });
   } catch (error) {

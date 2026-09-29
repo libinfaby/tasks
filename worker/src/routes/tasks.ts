@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { Env } from '../index';
+import { enrichTasks, linkTagsStatement } from '../utils/tasks';
 
 type Variables = { userId: string };
 
@@ -86,41 +87,7 @@ taskRoutes.get('/', async (c) => {
   try {
     const { results: tasks } = await db.prepare(query).bind(...params).all();
 
-    // Fetch subtasks and tags for each task
-    const enrichedTasks = await Promise.all(
-      (tasks || []).map(async (task: any) => {
-        const { results: subtasks } = await db.prepare(
-          `SELECT s.*, 
-            (SELECT json_group_array(json_object('id', t.id, 'name', t.name, 'tag_type_id', t.tag_type_id, 'color', t.color,
-              'type_name', (SELECT tt.name FROM tag_types tt WHERE tt.id = t.tag_type_id),
-              'type_color', (SELECT tt.color FROM tag_types tt WHERE tt.id = t.tag_type_id)
-            ))
-            FROM subtask_tags st JOIN tags t ON st.tag_id = t.id WHERE st.subtask_id = s.id) as tags
-           FROM subtasks s WHERE s.task_id = ? ORDER BY s.position ASC, s.created_at ASC`
-        ).bind(task.id).all();
-
-        const { results: tags } = await db.prepare(
-          `SELECT t.*, tt.name as type_name, tt.color as type_color 
-           FROM task_tags tg JOIN tags t ON tg.tag_id = t.id 
-           LEFT JOIN tag_types tt ON t.tag_type_id = tt.id
-           WHERE tg.task_id = ?`
-        ).bind(task.id).all();
-
-        const { results: group } = task.group_id
-          ? await db.prepare(`SELECT * FROM task_groups WHERE id = ?`).bind(task.group_id).all()
-          : { results: [] };
-
-        return {
-          ...task,
-          subtasks: (subtasks || []).map((s: any) => ({
-            ...s,
-            tags: s.tags ? JSON.parse(s.tags).filter((t: any) => t.id !== null) : [],
-          })),
-          tags: tags || [],
-          group: group?.[0] || null,
-        };
-      })
-    );
+    const enrichedTasks = await enrichTasks(db, (tasks || []) as any[]);
 
     return c.json({ tasks: enrichedTasks });
   } catch (error) {
@@ -140,40 +107,9 @@ taskRoutes.get('/:id', async (c) => {
       return c.json({ error: 'Task not found' }, 404);
     }
 
-    const task: any = tasks[0];
+    const [task] = await enrichTasks(db, [tasks[0]]);
 
-    const { results: subtasks } = await db.prepare(
-      `SELECT s.*,
-        (SELECT json_group_array(json_object('id', t.id, 'name', t.name, 'tag_type_id', t.tag_type_id, 'color', t.color,
-          'type_name', (SELECT tt.name FROM tag_types tt WHERE tt.id = t.tag_type_id),
-          'type_color', (SELECT tt.color FROM tag_types tt WHERE tt.id = t.tag_type_id)
-        ))
-        FROM subtask_tags st JOIN tags t ON st.tag_id = t.id WHERE st.subtask_id = s.id) as tags
-       FROM subtasks s WHERE s.task_id = ? ORDER BY s.position ASC`
-    ).bind(id).all();
-
-    const { results: tags } = await db.prepare(
-      `SELECT t.*, tt.name as type_name, tt.color as type_color 
-       FROM task_tags tg JOIN tags t ON tg.tag_id = t.id 
-       LEFT JOIN tag_types tt ON t.tag_type_id = tt.id
-       WHERE tg.task_id = ?`
-    ).bind(id).all();
-
-    const { results: group } = task.group_id
-      ? await db.prepare('SELECT * FROM task_groups WHERE id = ?').bind(task.group_id).all()
-      : { results: [] };
-
-    return c.json({
-      task: {
-        ...task,
-        subtasks: (subtasks || []).map((s: any) => ({
-          ...s,
-          tags: s.tags ? JSON.parse(s.tags).filter((t: any) => t.id !== null) : [],
-        })),
-        tags: tags || [],
-        group: group?.[0] || null,
-      },
-    });
+    return c.json({ task });
   } catch (error) {
     console.error('Error fetching task:', error);
     return c.json({ error: 'Failed to fetch task' }, 500);
@@ -192,54 +128,43 @@ taskRoutes.post('/', async (c) => {
       return c.json({ error: 'Title is required' }, 400);
     }
 
-    // Get next position
-    const { results: posResult } = await db.prepare(
-      'SELECT COALESCE(MAX(position), 0) + 1 as next_pos FROM tasks'
-    ).all();
-    const nextPos = (posResult as any)?.[0]?.next_pos || 0;
+    // Everything is applied in one atomic batch. Later statements reference the
+    // rows just inserted via MAX(id), which is safe inside the batch transaction.
+    const stmts: D1PreparedStatement[] = [
+      db.prepare(
+        `INSERT INTO tasks (title, details, priority, date, reminder, group_id, position)
+         VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM tasks))`
+      ).bind(
+        title.trim(),
+        details?.trim() || null,
+        priority || 0,
+        date || null,
+        reminder || null,
+        group_id || null
+      ),
+    ];
 
-    const result = await db.prepare(
-      `INSERT INTO tasks (title, details, priority, date, reminder, group_id, position) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).bind(
-      title.trim(),
-      details?.trim() || null,
-      priority || 0,
-      date || null,
-      reminder || null,
-      group_id || null,
-      nextPos
-    ).run();
-
-    const taskId = result.meta.last_row_id;
-
-    // Add subtasks
     if (subtasks && Array.isArray(subtasks)) {
-      for (let i = 0; i < subtasks.length; i++) {
-        const sub = subtasks[i];
-        const subResult = await db.prepare(
-          'INSERT INTO subtasks (task_id, title, position) VALUES (?, ?, ?)'
-        ).bind(taskId, sub.title.trim(), i).run();
-
-        // Add subtask tags
-        if (sub.tag_ids && Array.isArray(sub.tag_ids)) {
-          for (const tagId of sub.tag_ids) {
-            await db.prepare(
-              'INSERT OR IGNORE INTO subtask_tags (subtask_id, tag_id) VALUES (?, ?)'
-            ).bind(subResult.meta.last_row_id, tagId).run();
-          }
+      subtasks.forEach((sub: any, i: number) => {
+        stmts.push(
+          db.prepare(
+            'INSERT INTO subtasks (task_id, title, position) VALUES ((SELECT MAX(id) FROM tasks), ?, ?)'
+          ).bind(sub.title.trim(), i)
+        );
+        if (sub.tag_ids && Array.isArray(sub.tag_ids) && sub.tag_ids.length > 0) {
+          stmts.push(
+            linkTagsStatement(db, 'subtask_tags', 'SELECT MAX(id) FROM subtasks', [], sub.tag_ids)
+          );
         }
-      }
+      });
     }
 
-    // Add task tags
-    if (tag_ids && Array.isArray(tag_ids)) {
-      for (const tagId of tag_ids) {
-        await db.prepare(
-          'INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)'
-        ).bind(taskId, tagId).run();
-      }
+    if (tag_ids && Array.isArray(tag_ids) && tag_ids.length > 0) {
+      stmts.push(linkTagsStatement(db, 'task_tags', 'SELECT MAX(id) FROM tasks', [], tag_ids));
     }
+
+    const batchResults = await db.batch(stmts);
+    const taskId = batchResults[0].meta.last_row_id;
 
     return c.json({ id: taskId, message: 'Task created' }, 201);
   } catch (error) {
@@ -268,39 +193,41 @@ taskRoutes.put('/:id', async (c) => {
       newIsNotified = 0;
     }
 
-    await db.prepare(
-      `UPDATE tasks SET 
-        title = COALESCE(?, title),
-        details = ?,
-        priority = COALESCE(?, priority),
-        date = ?,
-        reminder = ?,
-        is_notified = ?,
-        group_id = ?,
-        position = COALESCE(?, position),
-        updated_at = datetime('now')
-       WHERE id = ?`
-    ).bind(
-      title?.trim() || null,
-      details !== undefined ? (details?.trim() || null) : null,
-      priority !== undefined ? priority : null,
-      date !== undefined ? (date || null) : null,
-      reminder !== undefined ? (reminder || null) : null,
-      newIsNotified,
-      group_id !== undefined ? (group_id || null) : null,
-      position !== undefined ? position : null,
-      id
-    ).run();
+    const stmts: D1PreparedStatement[] = [
+      db.prepare(
+        `UPDATE tasks SET
+          title = COALESCE(?, title),
+          details = ?,
+          priority = COALESCE(?, priority),
+          date = ?,
+          reminder = ?,
+          is_notified = ?,
+          group_id = ?,
+          position = COALESCE(?, position),
+          updated_at = datetime('now')
+         WHERE id = ?`
+      ).bind(
+        title?.trim() || null,
+        details !== undefined ? (details?.trim() || null) : null,
+        priority !== undefined ? priority : null,
+        date !== undefined ? (date || null) : null,
+        reminder !== undefined ? (reminder || null) : null,
+        newIsNotified,
+        group_id !== undefined ? (group_id || null) : null,
+        position !== undefined ? position : null,
+        id
+      ),
+    ];
 
-    // Update task tags if provided
+    // Replace task tags if provided
     if (tag_ids !== undefined && Array.isArray(tag_ids)) {
-      await db.prepare('DELETE FROM task_tags WHERE task_id = ?').bind(id).run();
-      for (const tagId of tag_ids) {
-        await db.prepare(
-          'INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)'
-        ).bind(id, tagId).run();
+      stmts.push(db.prepare('DELETE FROM task_tags WHERE task_id = ?').bind(id));
+      if (tag_ids.length > 0) {
+        stmts.push(linkTagsStatement(db, 'task_tags', '?', [id], tag_ids));
       }
     }
+
+    await db.batch(stmts);
 
     return c.json({ message: 'Task updated' });
   } catch (error) {
