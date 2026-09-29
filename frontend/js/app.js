@@ -93,9 +93,17 @@ class App {
           id: 'search-type-select',
           className: 'form-select tag-filter-select',
           style: { width: '130px' },
-          onChange: () => {
+          onChange: (e) => {
             const input = document.getElementById('search-input');
-            if (input.value) {
+            const wantsDate = e.target.value === 'date';
+            const hadValue = !!input.value;
+            // Date search uses a native date picker; other searches use free text
+            if ((input.type === 'date') !== wantsDate) {
+              input.type = wantsDate ? 'date' : 'text';
+              input.placeholder = wantsDate ? '' : 'Search...';
+              input.value = '';
+            }
+            if (hadValue || input.value) {
               input.dispatchEvent(new Event('input'));
             }
           }
