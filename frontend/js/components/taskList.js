@@ -76,6 +76,7 @@ export class TaskList {
       className: `task-card priority-${task.priority}${task.is_completed ? ' completed' : ''}${kindTag ? ' has-kind' : ''}`,
       onClick: (e) => { if (e.target.closest('.task-checkbox') || e.target.closest('.task-action-btn') || e.target.closest('.subtask-item .task-checkbox')) return; this._editTask(task); },
     },
+      kindTag ? createElement('span', { className: 'tag-chip kind-chip', style: { ...getChipStyle({ color: kindTag.color, fg_color: kindTag.fg_color, has_bg: true, type_color: kindTag.type_color, type_fg_color: kindTag.type_fg_color }), border: 'none' } }, kindTag.name) : null,
       kindTag ? createElement('div', { className: 'task-kind-strip', title: kindTag.name, style: { background: getTagChipStyle({ color: kindTag.color, fg_color: kindTag.fg_color, has_bg: true, type_color: kindTag.type_color }, kindTag.type_name).background } }) : null,
       createElement('div', { className: 'task-card-header', style: { padding: '12px 16px', display: 'flex', gap: '12px', alignItems: 'flex-start' } },
         // Checkbox Container
@@ -114,14 +115,6 @@ export class TaskList {
 
   _renderTopMetaRow(task) {
     const leftItems = [];
-    const kindTag = (task.tags || []).find(isKindTag);
-    if (kindTag) {
-      const ks = getChipStyle({ color: kindTag.color, fg_color: kindTag.fg_color, has_bg: true, type_color: kindTag.type_color, type_fg_color: kindTag.type_fg_color });
-      leftItems.push(createElement('span', {
-        className: 'tag-chip kind-chip',
-        style: { ...ks, border: 'none', borderRadius: '999px', height: '18px', padding: '0 10px', fontSize: '0.65rem', fontWeight: '600' }
-      }, kindTag.name));
-    }
     if (task.priority > 0) {
       const cls = getPriorityClass(task.priority);
       leftItems.push(createElement('span', {
