@@ -7,6 +7,7 @@ import {
   getChipStyle, getPriorityLabel, getPriorityClass, formatReminder,
 } from '../utils.js';
 import { TaskForm } from './taskForm.js';
+import { toDateStr } from './dailyLog.js';
 
 export class TaskList {
   constructor({ onRefreshSidebar }) { this.tasks = []; this.filters = {}; this.view = 'all'; this.groupFilter = null; this.searchQuery = ''; this.taskForm = null; this.onRefreshSidebar = onRefreshSidebar; }
@@ -177,7 +178,34 @@ export class TaskList {
   }
   _filterChip(label, active, onClick) { return createElement('button', { className: `filter-chip${active ? ' active' : ''}`, onClick }, label); }
   _renderEmptyState() { const msgs = { all: { title: 'No tasks' } }; const msg = msgs[this.view] || msgs.all; return createElement('div', { className: 'empty-state' }, createElement('h3', {}, msg.title)); }
-  async _toggleTask(t) { try { await api.toggleTask(t.id); t.is_completed = !t.is_completed; const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } this.onRefreshSidebar?.(); } catch (err) { showToast(err.message, 'error'); } }
+  async _toggleTask(t) {
+    try {
+      await api.toggleTask(t.id); t.is_completed = !t.is_completed;
+      const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } this.onRefreshSidebar?.();
+      if (t.is_completed && await this._askAddToDaily(t)) {
+        await api.createDailyLog({ date: toDateStr(new Date()), text: t.title });
+        showToast('Added to Daily Tasks', 'success');
+      }
+    } catch (err) { showToast(err.message, 'error'); }
+  }
+  _askAddToDaily(task) {
+    return new Promise(resolve => {
+      const close = (answer) => { document.removeEventListener('keydown', onKey); overlay.remove(); resolve(answer); };
+      const onKey = (e) => { if (e.key === 'Escape') close(false); };
+      const overlay = createElement('div', { className: 'modal-overlay', onClick: (e) => { if (e.target === overlay) close(false); } },
+        createElement('div', { className: 'modal', style: { maxWidth: '420px' } },
+          createElement('div', { className: 'modal-header' }, createElement('h3', {}, 'Add to Daily Tasks?')),
+          createElement('div', { className: 'modal-body' }, createElement('div', {}, `Log "${task.title}" as a daily task entry for today?`)),
+          createElement('div', { className: 'modal-footer' },
+            createElement('button', { className: 'btn btn-secondary', onClick: () => close(false) }, 'No'),
+            createElement('button', { className: 'btn btn-primary', onClick: () => close(true) }, 'Add entry')
+          )
+        )
+      );
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(overlay);
+    });
+  }
   async _toggleSubtask(s) { try { await api.toggleSubtask(s.id); const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } } catch (err) { showToast(err.message, 'error'); } }
   _editTask(t) { if (!this.taskForm) this.taskForm = new TaskForm({ onSave: async () => { const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } this.onRefreshSidebar?.(); }, onClose: () => { } }); this.taskForm.open(t); }
   async _deleteTask(t) { if (!confirm(`Delete?`)) return; try { await api.deleteTask(t.id); showToast('Deleted', 'success'); const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } this.onRefreshSidebar?.(); } catch (err) { showToast(err.message, 'error'); } }

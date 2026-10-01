@@ -82,7 +82,7 @@ taskRoutes.get('/', async (c) => {
     }
   }
 
-  query += ` ORDER BY t.is_completed ASC, t.priority DESC, t.position ASC, t.created_at DESC`;
+  query += ` ORDER BY t.is_completed ASC, t.priority DESC, t.created_at DESC, t.id DESC`;
 
   try {
     const { results: tasks } = await db.prepare(query).bind(...params).all();

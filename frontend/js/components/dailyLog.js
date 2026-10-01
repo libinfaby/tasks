@@ -6,7 +6,7 @@ import { api } from '../api.js';
 import { createElement, showToast } from '../utils.js';
 
 // Local (not UTC) YYYY-MM-DD, so "today" matches the user's calendar day
-function toDateStr(d) {
+export function toDateStr(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -254,8 +254,8 @@ export class DailyLog {
             createElement('span', { className: 'daily-count' }, `${entries.length} task${entries.length === 1 ? '' : 's'}`),
             createElement('button', { className: 'btn btn-secondary daily-copy', onClick: () => copyLines(entries) }, 'Copy tasks')
           ),
-          createElement('ul', { className: 'daily-day-list' },
-            ...entries.map(e => createElement('li', {}, e.text))
+          createElement('div', { className: 'daily-list' },
+            ...entries.map(e => this._entryRow(e, load))
           )
         ));
       });
