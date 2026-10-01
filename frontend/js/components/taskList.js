@@ -65,6 +65,9 @@ export class TaskList {
 
   _renderTaskCard(task) {
     const totalSubtasks = (task.subtasks || []).length;
+    const isClient = (tag) => (tag.type_name || '').toLowerCase() === 'client';
+    const clientTags = (task.tags || []).filter(isClient);
+    const otherTags = (task.tags || []).filter(tag => !isClient(tag));
     return createElement('div', {
       className: `task-card priority-${task.priority}${task.is_completed ? ' completed' : ''}`,
       onClick: (e) => { if (e.target.closest('.task-checkbox') || e.target.closest('.task-action-btn') || e.target.closest('.subtask-item .task-checkbox')) return; this._editTask(task); },
@@ -96,8 +99,9 @@ export class TaskList {
             this._renderDateMeta(task)
           ),
 
+          this._renderTags(clientTags, 4),
           task.details ? createElement('div', { className: 'task-details', style: { marginTop: '4px' } }, task.details) : null,
-          this._renderTags(task.tags),
+          this._renderTags(otherTags),
           totalSubtasks > 0 ? this._renderSubtasks(task) : null,
         )
       )
@@ -147,9 +151,9 @@ export class TaskList {
     return createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', height: '24px', flexShrink: '0' } }, ...items);
   }
 
-  _renderTags(tags) {
+  _renderTags(tags, marginTop = 8) {
     if (!tags || tags.length === 0) return null;
-    return createElement('div', { className: 'tag-list', style: { marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' } },
+    return createElement('div', { className: 'tag-list', style: { marginTop: `${marginTop}px`, display: 'flex', flexWrap: 'wrap', gap: '6px' } },
       ...tags.map(tag => {
         const style = getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: tag.type_color, type_fg_color: tag.type_fg_color, type_has_bg: tag.type_has_bg });
         return createElement('span', {
@@ -157,7 +161,10 @@ export class TaskList {
           style: { ...style, cursor: 'pointer', border: 'none', fontSize: '0.65rem' },
           onClick: (e) => { e.stopPropagation(); this.setTagFilter(tag.id); const b = document.getElementById('task-list-body'); if (b) this.refresh(b.parentElement); }
         },
-          createElement('span', { className: 'tag-type-label' }, `${tag.type_name || 'Tag'}:`), ` ${tag.name}`
+          // Client and Project tags read as just their name; other types keep the "Type:" label
+          ...(['client', 'project'].includes((tag.type_name || '').toLowerCase())
+            ? [tag.name]
+            : [createElement('span', { className: 'tag-type-label' }, `${tag.type_name || 'Tag'}:`), ` ${tag.name}`])
         );
       })
     );
