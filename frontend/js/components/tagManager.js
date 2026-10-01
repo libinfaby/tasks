@@ -281,6 +281,8 @@ export class TagManager {
     const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: (type.fg_color || '#ffffff'), style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
     const hasBgCheck = createElement('input', { type: 'checkbox', checked: type.has_bg !== undefined ? !!type.has_bg : true, onChange: updatePreview });
     const iconInput = createElement('input', { type: 'text', className: 'form-input', value: type.icon || '', maxlength: '4' });
+    const applyAllCheck = createElement('input', { type: 'checkbox' });
+    const tagCount = (type.tags || []).length;
 
     const body = [
       createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
@@ -289,7 +291,8 @@ export class TagManager {
         createElement('div', { className: 'form-group' }, createElement('label', {}, 'Background'), colorInput),
         createElement('div', { className: 'form-group' }, createElement('label', {}, 'Foreground'), fgColorInput),
         createElement('div', { className: 'form-group' }, createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' } }, hasBgCheck, ' Show background'))),
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Icon'), iconInput)
+      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Icon'), iconInput),
+      ...(tagCount > 0 ? [createElement('div', { className: 'form-group' }, createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' } }, applyAllCheck, ` Apply these colors to all ${tagCount} tag${tagCount === 1 ? '' : 's'} in this category`))] : [])
     ];
     this._modal('Edit Tag Type', body, async () => {
       const name = nameInput.value.trim();
@@ -302,7 +305,14 @@ export class TagManager {
           has_bg: hasBgCheck.checked,
           icon: iconInput.value.trim() 
         }); 
-        showToast('Updated', 'success'); 
+        if (applyAllCheck.checked && tagCount > 0) {
+          await Promise.all(type.tags.map(tag => api.updateTag(tag.id, {
+            color: colorInput.value,
+            fg_color: fgColorInput.value,
+            has_bg: hasBgCheck.checked
+          })));
+        }
+        showToast(applyAllCheck.checked && tagCount > 0 ? 'Updated, colors applied to all tags' : 'Updated', 'success'); 
         this.render(root); 
       }
       catch (err) { showToast(err.message, 'error'); }
