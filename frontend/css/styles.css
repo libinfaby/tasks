@@ -1685,7 +1685,7 @@ textarea.form-input {
   font-size: 0.875rem; color: var(--text-primary);
 }
 .daily-item:hover { background: var(--bg-card-hover); }
-.daily-bullet { width: 6px; height: 6px; background: #ffffff; border-radius: 50%; flex-shrink: 0; }
+.daily-bullet { width: 6px; height: 6px; background: #ffffff; border-radius: 50%; flex-shrink: 0; margin-right: 8px; }
 .daily-text { flex: 1; min-width: 0; word-wrap: break-word; }
 .daily-edit { flex: 1; height: 32px; }
 .daily-actions { display: flex; gap: 2px; opacity: 0; transition: opacity var(--transition-fast); }
