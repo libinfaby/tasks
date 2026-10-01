@@ -71,12 +71,10 @@ export class TaskList {
   _renderTaskCard(task) {
     const totalSubtasks = (task.subtasks || []).length;
     const kindTag = (task.tags || []).find(isKindTag);
-    const tags = (task.tags || []).filter(t => !isKindTag(t));
     return createElement('div', {
       className: `task-card priority-${task.priority}${task.is_completed ? ' completed' : ''}${kindTag ? ' has-kind' : ''}`,
       onClick: (e) => { if (e.target.closest('.task-checkbox') || e.target.closest('.task-action-btn') || e.target.closest('.subtask-item .task-checkbox')) return; this._editTask(task); },
     },
-      kindTag ? createElement('span', { className: 'tag-chip kind-chip', style: { ...getChipStyle({ color: kindTag.color, fg_color: kindTag.fg_color, has_bg: true, type_color: kindTag.type_color, type_fg_color: kindTag.type_fg_color }), border: 'none' } }, kindTag.name) : null,
       kindTag ? createElement('div', { className: 'task-kind-strip', title: kindTag.name, style: { background: getTagChipStyle({ color: kindTag.color, fg_color: kindTag.fg_color, has_bg: true, type_color: kindTag.type_color }, kindTag.type_name).background } }) : null,
       createElement('div', { className: 'task-card-header', style: { padding: '12px 16px', display: 'flex', gap: '12px', alignItems: 'flex-start' } },
         // Checkbox Container
@@ -106,7 +104,7 @@ export class TaskList {
           ),
 
           task.details ? createElement('div', { className: 'task-details', style: { marginTop: '4px' } }, task.details) : null,
-          this._renderTags(tags),
+          this._renderTags(task.tags),
           totalSubtasks > 0 ? this._renderSubtasks(task) : null,
         )
       )
@@ -158,19 +156,23 @@ export class TaskList {
 
   _renderTags(tags) {
     if (!tags || tags.length === 0) return null;
-    // Client, Project, Via first (in that order), then any other tag types
-    const rank = (tag) => { const i = TAG_TYPE_ORDER.indexOf((tag.type_name || '').toLowerCase()); return i === -1 ? TAG_TYPE_ORDER.length : i; };
+    // Client first, then the kind chip (Issue/Requirement/Modification), then Project, Via, then any other tag types
+    const ORDER = ['client', 'kind', 'project', 'via'];
+    const rank = (tag) => { const i = ORDER.indexOf(isKindTag(tag) ? 'kind' : (tag.type_name || '').toLowerCase()); return i === -1 ? ORDER.length : i; };
     const sorted = [...tags].sort((a, b) => rank(a) - rank(b));
     return createElement('div', { className: 'tag-list', style: { marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' } },
       ...sorted.map(tag => {
-        const style = getTagChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: tag.type_color, type_fg_color: tag.type_fg_color, type_has_bg: tag.type_has_bg }, tag.type_name);
+        const kind = isKindTag(tag);
+        const style = kind
+          ? getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: true, type_color: tag.type_color, type_fg_color: tag.type_fg_color })
+          : getTagChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: tag.type_color, type_fg_color: tag.type_fg_color, type_has_bg: tag.type_has_bg }, tag.type_name);
         return createElement('span', {
-          className: 'tag-chip selected-tag-clickable',
+          className: `tag-chip selected-tag-clickable${kind ? ' kind-chip' : ''}`,
           style: { ...style, cursor: 'pointer', border: 'none', ...((tag.type_name || '').toLowerCase() === 'client' ? { fontSize: '0.68rem', fontWeight: '600' } : { fontSize: '0.65rem' }) },
           onClick: (e) => { e.stopPropagation(); this.setTagFilter(tag.id); const b = document.getElementById('task-list-body'); if (b) this.refresh(b.parentElement); }
         },
           // Client, Project and Via tags read as just their name; other types keep the "Type:" label
-          ...(TAG_TYPE_ORDER.includes((tag.type_name || '').toLowerCase())
+          ...(kind || TAG_TYPE_ORDER.includes((tag.type_name || '').toLowerCase())
             ? [tag.name]
             : [createElement('span', { className: 'tag-type-label' }, `${tag.type_name || 'Tag'}:`), ` ${tag.name}`])
         );
