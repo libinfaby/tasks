@@ -3,7 +3,7 @@
 // ============================================================
 
 import { api } from '../api.js';
-import { createElement, showToast, formatDateInput, formatDatetimeLocal, getChipStyle, getTagChipStyle } from '../utils.js';
+import { createElement, showToast, formatDateInput, formatDatetimeLocal, getChipStyle } from '../utils.js';
 
 export class TaskForm {
   constructor({ onSave, onClose }) {
@@ -139,7 +139,7 @@ export class TaskForm {
         createElement('div', { className: 'tag-selector-options' },
           ...(hasTags ? type.tags.map(tag => {
             const isSelected = selectedIds.has(tag.id);
-            const style = getTagChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: type.color, type_fg_color: type.fg_color, type_has_bg: type.has_bg }, type.name);
+            const style = getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: type.color, type_fg_color: type.fg_color, type_has_bg: type.has_bg });
             return createElement('button', {
               type: 'button', className: `tag-option${isSelected ? ' selected' : ''}`, dataset: { tagId: tag.id },
               style: {
@@ -287,7 +287,7 @@ export class TaskForm {
         if (tag) { tagData = tag; typeData = type; break; }
       }
       if (tagData && typeData) {
-        const style = getTagChipStyle({ color: tagData.color, fg_color: tagData.fg_color, has_bg: tagData.has_bg, type_color: typeData.color, type_fg_color: typeData.fg_color, type_has_bg: typeData.has_bg }, typeData.name);
+        const style = getChipStyle({ color: tagData.color, fg_color: tagData.fg_color, has_bg: tagData.has_bg, type_color: typeData.color, type_fg_color: typeData.fg_color, type_has_bg: typeData.has_bg });
         const primaryColor = (style.background === 'transparent' ? style.color : style.background);
         el.style.background = isSelected ? style.background : 'transparent';
         el.style.color = isSelected ? style.color : primaryColor;
@@ -309,7 +309,7 @@ export class TaskForm {
         if (tag) { ft = tag; fty = type; break; }
       }
       if (ft && fty) {
-        const s = getTagChipStyle({ color: ft.color, fg_color: ft.fg_color, has_bg: ft.has_bg, type_color: fty.color, type_fg_color: fty.fg_color, type_has_bg: fty.type_has_bg }, fty.name);
+        const s = getChipStyle({ color: ft.color, fg_color: ft.fg_color, has_bg: ft.has_bg, type_color: fty.color, type_fg_color: fty.fg_color, type_has_bg: fty.type_has_bg });
         container.appendChild(createElement('span', { className: 'tag-chip', style: { ...s, fontSize: '0.7rem', padding: '2px 8px', border: 'none' } }, `${fty.name}: ${ft.name}`));
       }
     });

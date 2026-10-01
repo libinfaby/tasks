@@ -3,7 +3,7 @@
 // ============================================================
 
 import { api } from '../api.js';
-import { createElement, showToast, getTagBg, getChipStyle, getTagChipStyle } from '../utils.js';
+import { createElement, showToast, getTagBg, getChipStyle } from '../utils.js';
 
 export class TagManager {
   constructor() {
@@ -65,14 +65,14 @@ export class TagManager {
   }
 
   _chip(tag, type, root) {
-    const style = getTagChipStyle({
+    const style = getChipStyle({
       color: tag.color,
       fg_color: tag.fg_color,
       has_bg: tag.has_bg,
       type_color: type.color,
       type_fg_color: type.fg_color,
       type_has_bg: type.has_bg
-    }, type.name);
+    });
     return createElement('span', {
       className: 'tag-chip tag-chip-editable', style,
       onClick: () => this._editTag(tag, type, root)
@@ -224,9 +224,11 @@ export class TagManager {
     };
 
     const nameInput = createElement('input', { type: 'text', className: 'form-input', placeholder: 'Tag name...', onInput: updatePreview });
-    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: type.color, style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
-    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: (type.fg_color || '#ffffff'), style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
-    const hasBgCheck = createElement('input', { type: 'checkbox', checked: type.has_bg !== undefined ? !!type.has_bg : true, onChange: updatePreview });
+    // New Client tags start white on black; the colors stay editable
+    const isClient = (type.name || '').toLowerCase() === 'client';
+    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: isClient ? '#ffffff' : type.color, style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: isClient ? '#000000' : (type.fg_color || '#ffffff'), style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const hasBgCheck = createElement('input', { type: 'checkbox', checked: isClient || (type.has_bg !== undefined ? !!type.has_bg : true), onChange: updatePreview });
 
     const body = [
       createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),

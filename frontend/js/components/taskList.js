@@ -4,7 +4,7 @@
 import { api } from '../api.js';
 import {
   createElement, showToast, formatDate, isOverdue, isToday,
-  getChipStyle, getTagChipStyle, getPriorityLabel, getPriorityClass, formatReminder,
+  getChipStyle, getPriorityLabel, getPriorityClass, formatReminder,
 } from '../utils.js';
 import { TaskForm } from './taskForm.js';
 import { toDateStr } from './dailyLog.js';
@@ -75,7 +75,7 @@ export class TaskList {
       className: `task-card priority-${task.priority}${task.is_completed ? ' completed' : ''}${kindTag ? ' has-kind' : ''}`,
       onClick: (e) => { if (e.target.closest('.task-checkbox') || e.target.closest('.task-action-btn') || e.target.closest('.subtask-item .task-checkbox')) return; this._editTask(task); },
     },
-      kindTag ? createElement('div', { className: 'task-kind-strip', title: kindTag.name, style: { background: getTagChipStyle({ color: kindTag.color, fg_color: kindTag.fg_color, has_bg: true, type_color: kindTag.type_color }, kindTag.type_name).background } }) : null,
+      kindTag ? createElement('div', { className: 'task-kind-strip', title: kindTag.name, style: { background: getChipStyle({ color: kindTag.color, fg_color: kindTag.fg_color, has_bg: true, type_color: kindTag.type_color }).background } }) : null,
       createElement('div', { className: 'task-card-header', style: { padding: '12px 16px', display: 'flex', gap: '12px', alignItems: 'flex-start' } },
         // Checkbox Container
         createElement('div', { style: { width: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: '0', marginRight: '12px' } },
@@ -165,7 +165,7 @@ export class TaskList {
         const kind = isKindTag(tag);
         const style = kind
           ? getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: true, type_color: tag.type_color, type_fg_color: tag.type_fg_color })
-          : getTagChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: tag.type_color, type_fg_color: tag.type_fg_color, type_has_bg: tag.type_has_bg }, tag.type_name);
+          : getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: tag.type_color, type_fg_color: tag.type_fg_color, type_has_bg: tag.type_has_bg });
         return createElement('span', {
           className: `tag-chip selected-tag-clickable${kind ? ' kind-chip' : ''}`,
           style: { ...style, cursor: 'pointer', border: 'none', ...((tag.type_name || '').toLowerCase() === 'client' ? { fontSize: '0.65rem', fontWeight: '600' } : { fontSize: '0.65rem' }) },
