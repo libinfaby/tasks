@@ -26,7 +26,7 @@ function prettyDate(dateStr) {
 }
 
 async function copyLines(entries) {
-  const text = entries.map(e => e.text).join('\n');
+  const text = entries.map(e => `\u2022 ${e.text}`).join('\n');
   if (!text) {
     showToast('Nothing to copy', 'info');
     return;
