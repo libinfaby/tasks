@@ -168,7 +168,7 @@ export class TaskList {
           : getTagChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: tag.type_color, type_fg_color: tag.type_fg_color, type_has_bg: tag.type_has_bg }, tag.type_name);
         return createElement('span', {
           className: `tag-chip selected-tag-clickable${kind ? ' kind-chip' : ''}`,
-          style: { ...style, cursor: 'pointer', border: 'none', ...((tag.type_name || '').toLowerCase() === 'client' ? { fontSize: '0.68rem', fontWeight: '600' } : { fontSize: '0.65rem' }) },
+          style: { ...style, cursor: 'pointer', border: 'none', ...((tag.type_name || '').toLowerCase() === 'client' ? { fontSize: '0.65rem', fontWeight: '600' } : { fontSize: '0.65rem' }) },
           onClick: (e) => { e.stopPropagation(); this.setTagFilter(tag.id); const b = document.getElementById('task-list-body'); if (b) this.refresh(b.parentElement); }
         },
           // Client, Project and Via tags read as just their name; other types keep the "Type:" label
