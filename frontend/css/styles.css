@@ -649,7 +649,7 @@ input, textarea, select {
 .task-card.has-kind { padding-top: calc(var(--space-md) + 10px); }
 .task-card .kind-chip {
   position: absolute; top: 6px; left: 10px; z-index: 2;
-  height: 16px; padding: 0 10px; border-radius: 999px;
+  height: 22px; padding: 0 12px; border-radius: 999px;
   font-size: 0.65rem; font-weight: 400; line-height: 1;
 }
 
