@@ -10,6 +10,9 @@ import { TaskForm } from './taskForm.js';
 import { toDateStr } from './dailyLog.js';
 
 const TAG_TYPE_ORDER = ['client', 'project', 'via'];
+// Tags named like this render as a colored strip on the card's left edge instead of a chip
+const KIND_TAG_NAMES = ['issue', 'requirement', 'modification'];
+const isKindTag = (tag) => KIND_TAG_NAMES.includes((tag.name || '').trim().toLowerCase());
 
 export class TaskList {
   constructor({ onRefreshSidebar }) { this.tasks = []; this.filters = {}; this.view = 'all'; this.groupFilter = null; this.searchQuery = ''; this.taskForm = null; this.onRefreshSidebar = onRefreshSidebar; }
@@ -67,10 +70,13 @@ export class TaskList {
 
   _renderTaskCard(task) {
     const totalSubtasks = (task.subtasks || []).length;
+    const kindTag = (task.tags || []).find(isKindTag);
+    const tags = (task.tags || []).filter(t => !isKindTag(t));
     return createElement('div', {
-      className: `task-card priority-${task.priority}${task.is_completed ? ' completed' : ''}`,
+      className: `task-card priority-${task.priority}${task.is_completed ? ' completed' : ''}${kindTag ? ' has-kind' : ''}`,
       onClick: (e) => { if (e.target.closest('.task-checkbox') || e.target.closest('.task-action-btn') || e.target.closest('.subtask-item .task-checkbox')) return; this._editTask(task); },
     },
+      kindTag ? createElement('div', { className: 'task-kind-strip', title: kindTag.name, style: { background: getTagChipStyle({ color: kindTag.color, fg_color: kindTag.fg_color, has_bg: true, type_color: kindTag.type_color }, kindTag.type_name).background } }) : null,
       createElement('div', { className: 'task-card-header', style: { padding: '12px 16px', display: 'flex', gap: '12px', alignItems: 'flex-start' } },
         // Checkbox Container
         createElement('div', { style: { width: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: '0', marginRight: '12px' } },
@@ -99,7 +105,7 @@ export class TaskList {
           ),
 
           task.details ? createElement('div', { className: 'task-details', style: { marginTop: '4px' } }, task.details) : null,
-          this._renderTags(task.tags),
+          this._renderTags(tags),
           totalSubtasks > 0 ? this._renderSubtasks(task) : null,
         )
       )
