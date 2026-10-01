@@ -70,12 +70,10 @@ export class TaskList {
 
   _renderTaskCard(task) {
     const totalSubtasks = (task.subtasks || []).length;
-    const kindTag = (task.tags || []).find(isKindTag);
     return createElement('div', {
-      className: `task-card priority-${task.priority}${task.is_completed ? ' completed' : ''}${kindTag ? ' has-kind' : ''}`,
+      className: `task-card priority-${task.priority}${task.is_completed ? ' completed' : ''}`,
       onClick: (e) => { if (e.target.closest('.task-checkbox') || e.target.closest('.task-action-btn') || e.target.closest('.subtask-item .task-checkbox')) return; this._editTask(task); },
     },
-      kindTag ? createElement('div', { className: 'task-kind-strip', title: kindTag.name, style: { background: getChipStyle({ color: kindTag.color, fg_color: kindTag.fg_color, has_bg: true, type_color: kindTag.type_color }).background } }) : null,
       createElement('div', { className: 'task-card-header', style: { padding: '12px 16px', display: 'flex', gap: '12px', alignItems: 'flex-start' } },
         // Checkbox Container
         createElement('div', { style: { width: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: '0', marginRight: '12px' } },

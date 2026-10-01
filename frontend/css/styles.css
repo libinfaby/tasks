@@ -641,9 +641,6 @@ input, textarea, select {
 .task-card.priority-1::before { background: var(--priority-high); }
 .task-card.priority-2::before { background: var(--priority-urgent); }
 
-/* Issue / Requirement / Modification: thin full-height strip on the left edge; priority strip moves beside it */
-.task-kind-strip { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
-.task-card.has-kind::before { left: 3px; }
 /* Kind chip (Issue/Requirement/Modification) sits in the tag row, right after the client tag.
    Selector is scoped under .task-card so it beats the base .tag-chip rules defined later. */
 .task-card .kind-chip {
