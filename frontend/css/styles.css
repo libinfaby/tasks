@@ -1667,7 +1667,7 @@ textarea.form-input {
 /* ==================== Daily Tasks ==================== */
 .daily-wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-md); }
 
-.daily-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+.daily-toolbar { margin-top: var(--space-lg); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-sm); }
 .daily-date-group, .daily-toolbar-right { display: flex; align-items: center; gap: var(--space-sm); }
 .daily-date { width: 170px; color-scheme: dark; }
 .daily-label { font-size: 0.75rem; color: var(--text-tertiary); }
