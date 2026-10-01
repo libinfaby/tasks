@@ -182,6 +182,13 @@ export function getChipStyle(config) {
 }
 
 /**
+ * Tag chips are always white with black text, regardless of stored tag colors
+ */
+export function getTagChipStyle() {
+  return getChipStyle({ color: '#ffffff', fg_color: '#000000', has_bg: true });
+}
+
+/**
  * Generate a color from string (for auto-coloring)
  */
 export function stringToColor(str) {
