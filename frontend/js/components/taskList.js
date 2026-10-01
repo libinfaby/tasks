@@ -182,20 +182,22 @@ export class TaskList {
     try {
       await api.toggleTask(t.id); t.is_completed = !t.is_completed;
       const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } this.onRefreshSidebar?.();
-      if (t.is_completed && await this._askAddToDaily(t)) {
-        await api.createDailyLog({ date: toDateStr(new Date()), text: t.title });
+      const clients = (t.tags || []).filter(g => (g.type_name || '').toLowerCase() === 'client').map(g => g.name);
+      const text = clients.length ? `${clients.join(', ')} - ${t.title}` : t.title;
+      if (t.is_completed && await this._askAddToDaily(text)) {
+        await api.createDailyLog({ date: toDateStr(new Date()), text });
         showToast('Added to Daily Tasks', 'success');
       }
     } catch (err) { showToast(err.message, 'error'); }
   }
-  _askAddToDaily(task) {
+  _askAddToDaily(text) {
     return new Promise(resolve => {
       const close = (answer) => { document.removeEventListener('keydown', onKey); overlay.remove(); resolve(answer); };
       const onKey = (e) => { if (e.key === 'Escape') close(false); };
       const overlay = createElement('div', { className: 'modal-overlay', onClick: (e) => { if (e.target === overlay) close(false); } },
         createElement('div', { className: 'modal', style: { maxWidth: '420px' } },
           createElement('div', { className: 'modal-header' }, createElement('h3', {}, 'Add to Daily Tasks?')),
-          createElement('div', { className: 'modal-body' }, createElement('div', {}, `Log "${task.title}" as a daily task entry for today?`)),
+          createElement('div', { className: 'modal-body' }, createElement('div', {}, `Log "${text}" as a daily task entry for today?`)),
           createElement('div', { className: 'modal-footer' },
             createElement('button', { className: 'btn btn-secondary', onClick: () => close(false) }, 'No'),
             createElement('button', { className: 'btn btn-primary', onClick: () => close(true) }, 'Add entry')
