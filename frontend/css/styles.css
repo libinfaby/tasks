@@ -610,7 +610,7 @@ input, textarea, select {
 .task-list {
   display: flex;
   flex-direction: column;
-  gap: 1px;                             /* Carbon: tile rows share borders */
+  gap: 8px;
 }
 
 /* Carbon Tile — flat, bordered, no shadow at rest */
