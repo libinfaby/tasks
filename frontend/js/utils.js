@@ -182,10 +182,14 @@ export function getChipStyle(config) {
 }
 
 /**
- * Tag chips are always white with black text, regardless of stored tag colors
+ * Chip style for a tag: Client tags are always white on black text,
+ * every other tag type keeps its configured colors
  */
-export function getTagChipStyle() {
-  return getChipStyle({ color: '#ffffff', fg_color: '#000000', has_bg: true });
+export function getTagChipStyle(config, typeName) {
+  if ((typeName || '').toLowerCase() === 'client') {
+    return getChipStyle({ color: '#ffffff', fg_color: '#000000', has_bg: true });
+  }
+  return getChipStyle(config);
 }
 
 /**

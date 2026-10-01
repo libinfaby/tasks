@@ -156,7 +156,7 @@ export class TaskList {
     const sorted = [...tags].sort((a, b) => rank(a) - rank(b));
     return createElement('div', { className: 'tag-list', style: { marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' } },
       ...sorted.map(tag => {
-        const style = getTagChipStyle();
+        const style = getTagChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: tag.type_color, type_fg_color: tag.type_fg_color, type_has_bg: tag.type_has_bg }, tag.type_name);
         return createElement('span', {
           className: 'tag-chip selected-tag-clickable',
           style: { ...style, cursor: 'pointer', border: 'none', fontSize: '0.65rem' },
