@@ -1685,7 +1685,7 @@ textarea.form-input {
   font-size: 0.875rem; color: var(--text-primary);
 }
 .daily-item:hover { background: var(--bg-card-hover); }
-.daily-bullet { width: 6px; height: 6px; background: #ffffff; border-radius: 50%; flex-shrink: 0; margin-right: 8px; }
+.daily-bullet { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; flex-shrink: 0; margin-right: 8px; }
 .daily-text { flex: 1; min-width: 0; word-wrap: break-word; }
 .daily-edit { flex: 1; height: 32px; }
 .daily-actions { display: flex; gap: 2px; opacity: 0; transition: opacity var(--transition-fast); }
@@ -1699,7 +1699,7 @@ textarea.form-input {
 .daily-copy { height: 32px; }
 .daily-day-list { list-style: none; margin: 0; padding: var(--space-sm) var(--space-md); }
 .daily-day-list li { position: relative; padding: 4px 0 4px 16px; font-size: 0.875rem; color: var(--text-secondary); }
-.daily-day-list li::before { content: ''; position: absolute; left: 0; top: 12px; width: 6px; height: 6px; background: #ffffff; border-radius: 50%; }
+.daily-day-list li::before { content: ''; position: absolute; left: 0; top: 12px; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; }
 
 @media (max-width: 600px) {
   .daily-actions { opacity: 1; }
