@@ -644,9 +644,11 @@ input, textarea, select {
 /* Issue / Requirement / Modification: thin full-height strip on the left edge; priority strip moves beside it */
 .task-kind-strip { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
 .task-card.has-kind::before { left: 3px; }
-/* Kind chip sits on the card's top edge, just right of the top-left corner */
-.kind-chip {
-  position: absolute; top: -8px; left: 10px; z-index: 2;
+/* Kind chip sits inside the card, just right of the top-left corner; card gets extra top room for it.
+   Selector is scoped under .task-card so it beats the base .tag-chip rules defined later. */
+.task-card.has-kind { padding-top: calc(var(--space-md) + 10px); }
+.task-card .kind-chip {
+  position: absolute; top: 6px; left: 10px; z-index: 2;
   height: 16px; padding: 0 10px; border-radius: 999px;
   font-size: 0.65rem; font-weight: 400; line-height: 1;
 }
