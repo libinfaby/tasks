@@ -96,11 +96,11 @@ async function encryptPayload(
   const plaintextBytes = new TextEncoder().encode(payloadText);
 
   // 1. Generate ephemeral ECDH key pair
-  const serverKeyPair = await crypto.subtle.generateKey(
+  const serverKeyPair = (await crypto.subtle.generateKey(
     { name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']
-  );
+  )) as CryptoKeyPair;
   const serverPublicKeyRaw = new Uint8Array(
-    await crypto.subtle.exportKey('raw', serverKeyPair.publicKey)
+    (await crypto.subtle.exportKey('raw', serverKeyPair.publicKey)) as ArrayBuffer
   );
 
   // 2. Import the client's public key
@@ -111,7 +111,10 @@ async function encryptPayload(
   // 3. ECDH shared secret
   const sharedSecret = new Uint8Array(
     await crypto.subtle.deriveBits(
-      { name: 'ECDH', public: clientPublicKey }, serverKeyPair.privateKey, 256
+      // workers-types names this field `$public`, but the runtime reads the spec's `public`
+      { name: 'ECDH', public: clientPublicKey } as SubtleCryptoDeriveKeyAlgorithm,
+      serverKeyPair.privateKey,
+      256
     )
   );
 
