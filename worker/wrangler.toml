@@ -18,6 +18,8 @@ crons = ["* * * * *"]
 [vars]
 ALLOWED_ORIGIN = "https://tasks.libinfaby.dev"
 JWT_EXPIRY = "7d"
+# IANA zone that recurring reminders step in (keeps 09:00 at 09:00 local)
+TIMEZONE = "Asia/Kolkata"
 VAPID_PUBLIC_KEY = "BFVyvXzPSMJ9BZG4yw3elgHT7w6H8MTqT60eKfr2o1nIaLfmLyh_vc4C8BQ11QyLNnWdpQP-ZntIhHwrDLtiC7Y"
 # VAPID_PRIVATE_KEY is a secret: `wrangler secret put VAPID_PRIVATE_KEY` (local: worker/.dev.vars)
 VAPID_SUBJECT = "mailto:admin@libinfaby.dev"

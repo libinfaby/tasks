@@ -8,6 +8,7 @@ import { groupRoutes } from './routes/groups';
 import { dailyRoutes } from './routes/daily';
 import { authMiddleware } from './middleware/auth';
 import { sendPushNotification } from './utils/webpush';
+import { isRepeatRule, nextOccurrence } from './utils/recurrence';
 
 export type Env = {
   DB: D1Database;
@@ -18,6 +19,7 @@ export type Env = {
   VAPID_PUBLIC_KEY: string;
   VAPID_PRIVATE_KEY: string;
   VAPID_SUBJECT: string;
+  TIMEZONE: string;
 };
 
 type Variables = {
@@ -88,12 +90,9 @@ export default {
       }
       console.log(`[CRON] Found ${tasksToNotify.length} task(s) to notify`);
 
-      // Get all push subscriptions
-      const { results: subscriptions } = await db.prepare('SELECT * FROM push_subscriptions').all();
-      if (!subscriptions || subscriptions.length === 0) {
-        console.log('[CRON] No push subscriptions registered');
-        return;
-      }
+      // Get all push subscriptions. Due tasks are still marked/advanced when there are
+      // none, since the Android app schedules its own reminders.
+      const { results: subscriptions = [] } = await db.prepare('SELECT * FROM push_subscriptions').all();
       console.log(`[CRON] Sending to ${subscriptions.length} subscription(s)`);
 
       for (const task of tasksToNotify as any[]) {
@@ -134,8 +133,14 @@ export default {
 
         await Promise.all(sendPromises);
 
-        // Mark task as notified
-        await db.prepare('UPDATE tasks SET is_notified = 1 WHERE id = ?').bind(task.id).run();
+        // Repeating reminders move to their next occurrence; one-off ones are marked notified
+        if (isRepeatRule(task.reminder_repeat)) {
+          const next = nextOccurrence(task.reminder, task.reminder_repeat, env.TIMEZONE || 'UTC');
+          await db.prepare('UPDATE tasks SET reminder = ?, is_notified = 0 WHERE id = ?').bind(next, task.id).run();
+          console.log(`[CRON] Task ${task.id} repeats ${task.reminder_repeat}, next at ${next}`);
+        } else {
+          await db.prepare('UPDATE tasks SET is_notified = 1 WHERE id = ?').bind(task.id).run();
+        }
       }
     } catch (err) {
       console.error('[CRON] Scheduled trigger failed:', err);

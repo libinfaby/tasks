@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../index';
 import { enrichTasks, linkTagsStatement } from '../utils/tasks';
+import { isRepeatRule } from '../utils/recurrence';
 
 type Variables = { userId: string };
 
@@ -18,6 +19,7 @@ taskRoutes.get('/', async (c) => {
   const search = c.req.query('search');
   const searchType = c.req.query('search_type') || 'task';
   const searchTagTypeId = c.req.query('search_tag_type');
+  const hasReminder = c.req.query('has_reminder');
 
   let query = `
     SELECT DISTINCT t.* FROM tasks t
@@ -44,6 +46,10 @@ taskRoutes.get('/', async (c) => {
   if (tagId) {
     query += ` AND tt.tag_id = ?`;
     params.push(parseInt(tagId));
+  }
+
+  if (hasReminder === 'true') {
+    query += ` AND t.reminder IS NOT NULL`;
   }
 
   if (dateFrom) {
@@ -122,24 +128,28 @@ taskRoutes.post('/', async (c) => {
 
   try {
     const body = await c.req.json();
-    const { title, details, priority, date, reminder, group_id, subtasks, tag_ids } = body;
+    const { title, details, priority, date, reminder, reminder_repeat, group_id, subtasks, tag_ids } = body;
 
     if (!title || title.trim() === '') {
       return c.json({ error: 'Title is required' }, 400);
+    }
+    if (reminder_repeat != null && !isRepeatRule(reminder_repeat)) {
+      return c.json({ error: 'Invalid reminder_repeat' }, 400);
     }
 
     // Everything is applied in one atomic batch. Later statements reference the
     // rows just inserted via MAX(id), which is safe inside the batch transaction.
     const stmts: D1PreparedStatement[] = [
       db.prepare(
-        `INSERT INTO tasks (title, details, priority, date, reminder, group_id, position)
-         VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM tasks))`
+        `INSERT INTO tasks (title, details, priority, date, reminder, reminder_repeat, group_id, position)
+         VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM tasks))`
       ).bind(
         title.trim(),
         details?.trim() || null,
         priority || 0,
         date || null,
         reminder || null,
+        reminder_repeat || null,
         group_id || null
       ),
     ];
@@ -180,10 +190,14 @@ taskRoutes.put('/:id', async (c) => {
 
   try {
     const body = await c.req.json();
-    const { title, details, priority, date, reminder, group_id, position, tag_ids } = body;
+    const { title, details, priority, date, reminder, reminder_repeat, group_id, position, tag_ids } = body;
+
+    if (reminder_repeat != null && !isRepeatRule(reminder_repeat)) {
+      return c.json({ error: 'Invalid reminder_repeat' }, 400);
+    }
 
     // Check task exists
-    const { results: existing } = await db.prepare('SELECT id, reminder, is_notified FROM tasks WHERE id = ?').bind(id).all();
+    const { results: existing } = await db.prepare('SELECT id, reminder, reminder_repeat, is_notified FROM tasks WHERE id = ?').bind(id).all();
     if (!existing || existing.length === 0) {
       return c.json({ error: 'Task not found' }, 404);
     }
@@ -201,6 +215,7 @@ taskRoutes.put('/:id', async (c) => {
           priority = COALESCE(?, priority),
           date = ?,
           reminder = ?,
+          reminder_repeat = ?,
           is_notified = ?,
           group_id = ?,
           position = COALESCE(?, position),
@@ -212,6 +227,8 @@ taskRoutes.put('/:id', async (c) => {
         priority !== undefined ? priority : null,
         date !== undefined ? (date || null) : null,
         reminder !== undefined ? (reminder || null) : null,
+        // Unlike the other fields, an omitted repeat rule is kept, so older clients don't clear it
+        reminder_repeat !== undefined ? (reminder_repeat || null) : current.reminder_repeat,
         newIsNotified,
         group_id !== undefined ? (group_id || null) : null,
         position !== undefined ? position : null,
