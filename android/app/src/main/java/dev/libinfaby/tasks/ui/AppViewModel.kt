@@ -22,14 +22,23 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Top-level screens reachable from the drawer. */
+/** Screens. Root ones sit on the bottom bar; the rest open from the menu and go back to the last root. */
 sealed interface Destination {
-    data class Tasks(val view: TaskView) : Destination
-    data object DailyEntry : Destination
-    data object DailyReport : Destination
+    val isRoot: Boolean get() = false
+
+    data class Tasks(val view: TaskView) : Destination {
+        override val isRoot get() = view !is TaskView.Group
+    }
+    data class Daily(val report: Boolean) : Destination {
+        override val isRoot get() = true
+    }
     data object Tags : Destination
     data object Groups : Destination
     data object Settings : Destination
+
+    companion object {
+        val Start: Destination = Tasks(TaskView.Today)
+    }
 }
 
 /** A task to open in the editor; [task] null means a new task. */
@@ -49,7 +58,9 @@ class AppViewModel @Inject constructor(
         .map { tasks -> tasks.filter { it.groupId != null }.groupingBy { it.groupId!! }.eachCount() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
-    val destination = MutableStateFlow<Destination>(Destination.Tasks(TaskView.All))
+    private val _destination = MutableStateFlow(Destination.Start)
+    val destination: StateFlow<Destination> = _destination
+    private var lastRoot = Destination.Start
     val editor = MutableStateFlow<EditorRequest?>(null)
 
     private val _signInError = MutableStateFlow<String?>(null)
@@ -70,7 +81,7 @@ class AppViewModel @Inject constructor(
     fun signOut() = viewModelScope.launch {
         SyncWorker.cancelAll(context)
         repo.signOut()
-        destination.value = Destination.Tasks(TaskView.All)
+        go(Destination.Start)
     }
 
     /** Sync when the app comes to the foreground. */
@@ -80,7 +91,21 @@ class AppViewModel @Inject constructor(
         }
     }
 
+    fun go(d: Destination) {
+        if (d.isRoot) lastRoot = d
+        _destination.value = d
+    }
+
+    /** Back: a menu screen returns to the last tab, another tab returns to Today. False when already there. */
+    fun back(): Boolean = when {
+        !_destination.value.isRoot -> { _destination.value = lastRoot; true }
+        _destination.value != Destination.Start -> { go(Destination.Start); true }
+        else -> false
+    }
+
     fun setTheme(mode: ThemeMode) = viewModelScope.launch { settingsRepo.setTheme(mode) }
+
+    fun setWallpaperColors(on: Boolean) = viewModelScope.launch { settingsRepo.setWallpaperColors(on) }
 
     fun openNewTask() { editor.value = EditorRequest(null) }
 

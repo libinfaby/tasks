@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,26 +17,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,14 +44,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -61,13 +60,15 @@ import dev.libinfaby.tasks.data.api.userMessage
 import dev.libinfaby.tasks.data.repo.TasksRepository
 import dev.libinfaby.tasks.domain.Dates
 import dev.libinfaby.tasks.ui.components.ConfirmDialog
+import dev.libinfaby.tasks.ui.components.ConnectedItem
+import dev.libinfaby.tasks.ui.components.ConnectedToggleGroup
 import dev.libinfaby.tasks.ui.components.DatePickerDialogFor
-import dev.libinfaby.tasks.ui.components.ListCard
-import dev.libinfaby.tasks.ui.components.RowDivider
-import dev.libinfaby.tasks.ui.components.tasksFieldColors
+import dev.libinfaby.tasks.ui.components.EmptyState
+import dev.libinfaby.tasks.ui.components.Scallop
+import dev.libinfaby.tasks.ui.components.SectionHeader
+import dev.libinfaby.tasks.ui.components.ToggleColors
 import dev.libinfaby.tasks.ui.tasks.NameDialog
 import dev.libinfaby.tasks.ui.theme.TasksIcons
-import dev.libinfaby.tasks.ui.theme.palette
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -75,6 +76,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
+
 
 data class DailyState(
     val date: LocalDate = LocalDate.now(),
@@ -118,10 +120,9 @@ class DailyViewModel @Inject constructor(private val repo: TasksRepository) : Vi
 
 private fun bullets(entries: List<DailyLogDto>) = entries.joinToString("\n") { "• ${it.text}" }
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
-fun DailyScreen(vm: DailyViewModel, report: Boolean, onOpenDrawer: () -> Unit) {
-    val p = palette
+fun DailyScreen(vm: DailyViewModel, report: Boolean, onReport: (Boolean) -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val clipboard = LocalClipboard.current
@@ -141,71 +142,63 @@ fun DailyScreen(vm: DailyViewModel, report: Boolean, onOpenDrawer: () -> Unit) {
         }
     }
 
-    Scaffold(
-        containerColor = p.bg,
-        topBar = {
-            Column {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = p.bg),
-                    navigationIcon = { IconButton(onClick = onOpenDrawer) { Icon(TasksIcons.Menu, "Menu", tint = p.textSecondary) } },
-                    title = { Text(if (report) "Daily Report" else "Daily Tasks", style = MaterialTheme.typography.titleMedium) },
-                    actions = {
-                        if (!report) IconButton(onClick = { copy(state.entries) }) { Icon(TasksIcons.Copy, "Copy tasks", tint = p.textSecondary) }
-                    },
-                )
-                RowDivider()
+    Scaffold(containerColor = MaterialTheme.colorScheme.surface, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
+        LazyColumn(
+            Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 32.dp),
+        ) {
+            item(key = "title") {
+                Row(Modifier.padding(start = 4.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Daily log", style = MaterialTheme.typography.displaySmall, modifier = Modifier.weight(1f))
+                    if (!report) IconButton(onClick = { copy(state.entries) }) { Icon(TasksIcons.Copy, "Copy the day's entries") }
+                }
             }
-        },
-        snackbarHost = { SnackbarHost(snackbar) },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
+            item(key = "mode") {
+                ConnectedToggleGroup(
+                    options = listOf(false, true),
+                    selected = report,
+                    onSelect = onReport,
+                    label = { if (it) "Report" else "Day" },
+                    icon = { r, _ -> if (r) TasksIcons.Report else TasksIcons.Today },
+                )
+            }
             if (report) {
-                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { pick = "from" }) { Text(Dates.label(state.from)) }
-                    Text("→", color = p.textTertiary)
-                    TextButton(onClick = { pick = "to" }) { Text(Dates.label(state.to)) }
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { vm.setRange(LocalDate.now().minusDays(6), LocalDate.now()) }) { Text("7d") }
-                    TextButton(onClick = { vm.setRange(LocalDate.now().minusDays(29), LocalDate.now()) }) { Text("30d") }
-                }
+                item(key = "range") { RangeBar(state, onPick = { pick = it }, onRange = vm::setRange) }
             } else {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { vm.setDate(state.date.minusDays(1)) }) { Icon(TasksIcons.ChevronLeft, "Previous day", tint = p.textSecondary) }
-                    TextButton(onClick = { pick = "date" }, modifier = Modifier.weight(1f)) {
-                        Text(Dates.longLabel(state.date), color = p.textPrimary, style = MaterialTheme.typography.titleSmall)
-                    }
-                    IconButton(onClick = { vm.setDate(state.date.plusDays(1)) }) { Icon(TasksIcons.ChevronRight, "Next day", tint = p.textSecondary) }
-                }
-                AddRow(onAdd = vm::add)
+                item(key = "day") { DayBar(state.date, onShift = { vm.setDate(state.date.plusDays(it)) }, onPick = { pick = "date" }) }
+                item(key = "add") { AddRow(onAdd = vm::add) }
             }
 
             when {
-                state.loading -> Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = p.accent, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+                state.loading -> item(key = "loading") {
+                    Box(Modifier.fillMaxWidth().padding(56.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 }
-                state.entries.isEmpty() -> Text(
-                    if (report) "No tasks logged in this range." else "Nothing logged for this day yet.",
-                    color = p.textTertiary,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.fillMaxWidth().padding(32.dp),
-                )
-                report -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                state.entries.isEmpty() -> item(key = "empty") {
+                    if (report) EmptyState(TasksIcons.Report, "Nothing in this range", "Entries you log will add up here.")
+                    else EmptyState(TasksIcons.DailyLogFilled, "Nothing logged yet", "Finish a task and tap Log it, or add one above.")
+                }
+                report -> {
                     // The API returns newest day first
-                    val byDay = state.entries.groupBy { it.logDate }
-                    items(byDay.keys.toList()) { day ->
-                        val entries = byDay.getValue(day)
-                        Column {
-                            Row(Modifier.padding(start = 4.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(Dates.parseDate(day)?.let(Dates::longLabel) ?: day, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                                Text("${entries.size}", fontSize = 12.sp, color = p.textTertiary)
-                                IconButton(onClick = { copy(entries) }) { Icon(TasksIcons.Copy, "Copy", tint = p.textTertiary, modifier = Modifier.size(16.dp)) }
+                    state.entries.groupBy { it.logDate }.forEach { (day, entries) ->
+                        item(key = "d-$day") {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                SectionHeader(
+                                    Dates.parseDate(day)?.let(Dates::longLabel) ?: day,
+                                    Modifier.weight(1f),
+                                    icon = TasksIcons.Calendar,
+                                    tile = ToggleColors(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer),
+                                    tileShape = RoundedCornerShape(10.dp),
+                                    trailing = "${entries.size}",
+                                )
+                                IconButton(onClick = { copy(entries) }, modifier = Modifier.padding(top = 10.dp)) { Icon(TasksIcons.Copy, "Copy this day", modifier = Modifier.size(20.dp)) }
                             }
-                            EntryList(entries, onEdit = { editing = it }, onDelete = { deleting = it })
                         }
+                        entries(entries, "d-$day", onEdit = { editing = it }, onDelete = { deleting = it })
                     }
                 }
-                else -> LazyColumn(contentPadding = PaddingValues(16.dp)) {
-                    item { EntryList(state.entries, onEdit = { editing = it }, onDelete = { deleting = it }) }
+                else -> {
+                    item(key = "gap") { Spacer(Modifier.height(20.dp)) }
+                    entries(state.entries, "day", onEdit = { editing = it }, onDelete = { deleting = it })
                 }
             }
         }
@@ -220,45 +213,87 @@ fun DailyScreen(vm: DailyViewModel, report: Boolean, onOpenDrawer: () -> Unit) {
     }
 }
 
-/** The input stays put and clears right away, so quick consecutive entries aren't lost (as on web). */
+/** Previous day / the date (opens a picker) / next day, as one pill. */
 @Composable
-private fun AddRow(onAdd: (String) -> Unit) {
-    val p = palette
-    var text by remember { mutableStateOf("") }
-    val submit = { if (text.isNotBlank()) { onAdd(text.trim()); text = "" } }
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it.take(500) },
-            placeholder = { Text("What did you get done?") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done, capitalization = KeyboardCapitalization.Sentences),
-            keyboardActions = KeyboardActions(onDone = { submit() }),
-            colors = tasksFieldColors(),
-            modifier = Modifier.weight(1f),
-        )
-        Spacer(Modifier.width(8.dp))
-        Button(
-            onClick = submit,
-            shape = RoundedCornerShape(6.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = Color.White),
-            modifier = Modifier.height(52.dp),
-        ) { Icon(TasksIcons.Plus, "Add", modifier = Modifier.size(18.dp)) }
+private fun DayBar(date: LocalDate, onShift: (Long) -> Unit, onPick: () -> Unit) {
+    Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+        Row(Modifier.padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { onShift(-1) }) { Icon(TasksIcons.ChevronLeft, "Previous day") }
+            TextButton(onClick = onPick, modifier = Modifier.weight(1f)) {
+                Text(if (date == Dates.today()) "Today" else Dates.longLabel(date), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            }
+            IconButton(onClick = { onShift(1) }) { Icon(TasksIcons.ChevronRight, "Next day") }
+        }
     }
 }
 
 @Composable
-private fun EntryList(entries: List<DailyLogDto>, onEdit: (DailyLogDto) -> Unit, onDelete: (DailyLogDto) -> Unit) {
-    val p = palette
-    ListCard {
-        entries.forEachIndexed { i, e ->
-            if (i > 0) RowDivider()
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(6.dp).clip(CircleShape).background(p.accent))
-                Spacer(Modifier.width(12.dp))
-                Text(e.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(vertical = 10.dp))
-                IconButton(onClick = { onEdit(e) }) { Icon(TasksIcons.Pencil, "Edit", tint = p.textTertiary, modifier = Modifier.size(16.dp)) }
-                IconButton(onClick = { onDelete(e) }) { Icon(TasksIcons.Trash, "Delete", tint = p.textTertiary, modifier = Modifier.size(16.dp)) }
+private fun RangeBar(state: DailyState, onPick: (String) -> Unit, onRange: (LocalDate, LocalDate) -> Unit) {
+    val today = LocalDate.now()
+    Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { onPick("from") }, modifier = Modifier.weight(1f)) { Text(Dates.label(state.from), style = MaterialTheme.typography.titleMedium) }
+                Icon(TasksIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = { onPick("to") }, modifier = Modifier.weight(1f)) { Text(Dates.label(state.to), style = MaterialTheme.typography.titleMedium) }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(7L to "Last 7 days", 30L to "Last 30 days").forEach { (days, label) ->
+                val selected = state.to == today && state.from == today.minusDays(days - 1)
+                FilterChip(
+                    selected = selected,
+                    onClick = { onRange(today.minusDays(days - 1), today) },
+                    label = { Text(label, style = MaterialTheme.typography.labelLarge) },
+                    leadingIcon = if (selected) ({ Icon(TasksIcons.Check, null, modifier = Modifier.size(18.dp)) }) else null,
+                    shape = RoundedCornerShape(if (selected) 16.dp else 8.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    ),
+                    modifier = Modifier.height(36.dp),
+                )
+            }
+        }
+    }
+}
+
+/** The input stays put and clears right away, so quick consecutive entries aren't lost (as on web). */
+@Composable
+private fun AddRow(onAdd: (String) -> Unit) {
+    var text by remember { mutableStateOf("") }
+    val submit = { if (text.isNotBlank()) { onAdd(text.trim()); text = "" } }
+    Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+        Row(Modifier.padding(start = 20.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) {
+                if (text.isEmpty()) Text("What did you get done?", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                BasicTextField(
+                    value = text,
+                    onValueChange = { text = it.take(500) },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done, capitalization = KeyboardCapitalization.Sentences),
+                    keyboardActions = KeyboardActions(onDone = { submit() }),
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "New entry" },
+                )
+            }
+            FilledIconButton(onClick = submit, modifier = Modifier.size(48.dp)) { Icon(TasksIcons.Add, "Add entry") }
+        }
+    }
+}
+
+private fun LazyListScope.entries(entries: List<DailyLogDto>, keyPrefix: String, onEdit: (DailyLogDto) -> Unit, onDelete: (DailyLogDto) -> Unit) {
+    entries.forEachIndexed { i, e ->
+        item(key = "$keyPrefix-${e.id}") {
+            ConnectedItem(i, entries.size, modifier = Modifier.padding(bottom = 3.dp).animateItem(), onClick = { onEdit(e) }) {
+                Row(Modifier.padding(start = 18.dp, end = 4.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(10.dp).background(MaterialTheme.colorScheme.primary, Scallop))
+                    Spacer(Modifier.width(14.dp))
+                    Text(e.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(vertical = 10.dp))
+                    IconButton(onClick = { onDelete(e) }) { Icon(TasksIcons.Delete, "Delete entry", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp)) }
+                }
             }
         }
     }

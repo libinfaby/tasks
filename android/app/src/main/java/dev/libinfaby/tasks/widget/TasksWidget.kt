@@ -7,6 +7,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
@@ -48,7 +49,7 @@ import dev.libinfaby.tasks.R
 import dev.libinfaby.tasks.data.api.TaskDto
 import dev.libinfaby.tasks.data.repo.TasksRepository
 import dev.libinfaby.tasks.domain.Dates
-import dev.libinfaby.tasks.ui.theme.Tokens
+import dev.libinfaby.tasks.ui.theme.TasksColors
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -84,12 +85,12 @@ class TasksWidget : GlanceAppWidget() {
     @Composable
     private fun Content(context: Context, tasks: List<TaskDto>) {
         Column(
-            modifier = GlanceModifier.fillMaxSize().background(WidgetColors.surface).cornerRadius(20.dp).padding(14.dp),
+            modifier = GlanceModifier.fillMaxSize().background(WidgetColors.surface).cornerRadius(28.dp).padding(16.dp),
         ) {
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "Today",
-                    style = TextStyle(color = WidgetColors.text, fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                    style = TextStyle(color = WidgetColors.text, fontSize = 20.sp, fontWeight = FontWeight.Bold),
                     modifier = GlanceModifier.clickable(actionStartActivity(Intent(context, MainActivity::class.java))),
                 )
                 Spacer(GlanceModifier.width(8.dp))
@@ -99,12 +100,17 @@ class TasksWidget : GlanceAppWidget() {
                     modifier = GlanceModifier.defaultWeight(),
                 )
                 Box(
-                    modifier = GlanceModifier.size(32.dp).cornerRadius(10.dp).background(WidgetColors.accent)
+                    modifier = GlanceModifier.size(40.dp).cornerRadius(14.dp).background(WidgetColors.accent)
                         .clickable(actionStartActivity(newTaskIntent(context)))
                         .semantics { contentDescription = "New task" },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Image(ImageProvider(R.drawable.ic_widget_add), contentDescription = null, modifier = GlanceModifier.size(18.dp))
+                    Image(
+                        ImageProvider(R.drawable.ic_widget_add),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(WidgetColors.onAccent),
+                        modifier = GlanceModifier.size(22.dp),
+                    )
                 }
             }
             Spacer(GlanceModifier.height(10.dp))
@@ -122,11 +128,7 @@ class TasksWidget : GlanceAppWidget() {
 
     @Composable
     private fun TaskRow(context: Context, task: TaskDto) {
-        val ring = when (task.priority) {
-            2 -> R.drawable.widget_check_urgent
-            1 -> R.drawable.widget_check_high
-            else -> R.drawable.widget_check
-        }
+        val ring = if (task.priority > 0) WidgetColors.danger else WidgetColors.ring
         val overdue = Dates.isOverdue(task.date)
         Row(
             modifier = GlanceModifier.fillMaxWidth().padding(vertical = 6.dp)
@@ -134,8 +136,9 @@ class TasksWidget : GlanceAppWidget() {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Image(
-                ImageProvider(ring),
+                ImageProvider(R.drawable.widget_check),
                 contentDescription = "Complete ${task.title}",
+                colorFilter = ColorFilter.tint(ring),
                 modifier = GlanceModifier.size(22.dp)
                     .clickable(actionRunCallback<ToggleTaskAction>(actionParametersOf(ToggleTaskAction.TaskId to task.id))),
             )
@@ -179,13 +182,17 @@ class TasksWidget : GlanceAppWidget() {
     }
 }
 
-/** The design tokens (css/tokens.md) as day/night pairs; the widget follows the phone's theme. */
+/** The app's Grape scheme as day/night pairs; the widget follows the phone's theme. */
 private object WidgetColors {
-    val surface = ColorProvider(day = Tokens.Light.card, night = Tokens.Dark.card)
-    val text = ColorProvider(day = Tokens.Light.textPrimary, night = Tokens.Dark.textPrimary)
-    val muted = ColorProvider(day = Tokens.Light.textTertiary, night = Tokens.Dark.textTertiary)
-    val accent = ColorProvider(day = Tokens.Light.accent, night = Tokens.Dark.accent)
-    val danger = ColorProvider(day = Tokens.Light.danger, night = Tokens.Dark.danger)
+    private val L = TasksColors.Light
+    private val D = TasksColors.Dark
+    val surface = ColorProvider(day = L.surfaceContainerLow, night = D.surfaceContainer)
+    val text = ColorProvider(day = L.onSurface, night = D.onSurface)
+    val muted = ColorProvider(day = L.onSurfaceVariant, night = D.onSurfaceVariant)
+    val accent = ColorProvider(day = L.primaryContainer, night = D.primaryContainer)
+    val onAccent = ColorProvider(day = L.onPrimaryContainer, night = D.onPrimaryContainer)
+    val danger = ColorProvider(day = L.error, night = D.error)
+    val ring = ColorProvider(day = L.outline, night = D.outline)
 }
 
 /** Completes a task from the widget. */

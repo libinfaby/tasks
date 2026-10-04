@@ -14,6 +14,8 @@ object Dates {
     private val shortDateYear = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US)
     private val time = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
     private val longDate = DateTimeFormatter.ofPattern("EEE, MMM d, yyyy", Locale.US)
+    private val weekdayDate = DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.US)
+    private val fullDate = DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.US)
 
     fun today(): LocalDate = LocalDate.now()
 
@@ -47,6 +49,12 @@ object Dates {
     fun formatTime(instant: Instant): String = time.format(instant.atZone(ZoneId.systemDefault()))
 
     fun longLabel(date: LocalDate): String = longDate.format(date)
+
+    /** Upcoming section titles: "Tomorrow", then "Wednesday, Oct 7". */
+    fun dayLabel(date: LocalDate): String = if (date == today().plusDays(1)) "Tomorrow" else weekdayDate.format(date)
+
+    /** The Today header: "Sunday, October 4". */
+    fun fullLabel(date: LocalDate): String = fullDate.format(date)
 
     fun isOverdue(value: String?): Boolean = parseDate(value)?.isBefore(today()) == true
     fun isToday(value: String?): Boolean = parseDate(value) == today()

@@ -1,5 +1,8 @@
 package dev.libinfaby.tasks.ui.components
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -21,28 +25,33 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import dev.libinfaby.tasks.data.api.SubtaskDto
 import dev.libinfaby.tasks.data.api.TagDto
 import dev.libinfaby.tasks.data.api.TaskDto
 import dev.libinfaby.tasks.domain.Dates
 import dev.libinfaby.tasks.domain.RepeatRule
 import dev.libinfaby.tasks.ui.theme.TasksIcons
-import dev.libinfaby.tasks.ui.theme.palette
 
 // Client first, then the kind chip (Issue/Requirement/Modification), then Project, Via, then the rest (as on web).
 private val KIND_TAG_NAMES = setOf("issue", "requirement", "modification")
@@ -55,117 +64,170 @@ private fun TagDto.rank(): Int {
     return if (i == -1) TAG_ORDER.size else i
 }
 
-/** Round checkbox whose ring takes the priority colour, like the web list. */
+/** Ring colour: urgent takes the error role. Any non-zero priority is urgent (High was retired). */
 @Composable
-fun TaskCheckbox(checked: Boolean, priority: Int, onToggle: () -> Unit, size: Dp = 20.dp, square: Boolean = false, label: String = "") {
-    val p = palette
-    val ring = when {
-        checked -> p.accent
-        priority >= 2 -> p.urgent
-        priority == 1 -> p.high
-        else -> p.borderStrong
+fun priorityColor(priority: Int): Color = if (priority > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
+
+/**
+ * Round checkbox whose ring takes the priority colour. Checking it morphs into a filled scallop with a
+ * bouncy pop, a burst of confetti and a confirm haptic.
+ */
+@Composable
+fun TaskCheckbox(checked: Boolean, priority: Int, onToggle: () -> Unit, label: String) {
+    val haptics = LocalHapticFeedback.current
+    var bursts by remember { mutableIntStateOf(0) }
+    val pop by animateFloatAsState(
+        if (checked) 1f else 0f,
+        spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMediumLow),
+        label = "pop",
+    )
+    Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+        // Outside the clipped touch target so the confetti can fly past it
+        CompletionBurst(trigger = bursts.takeIf { it > 0 }, modifier = Modifier.requiredSize(72.dp))
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(CircleShape)
+                .clickable(role = Role.Checkbox) {
+                    if (!checked) {
+                        bursts++
+                        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                    }
+                    onToggle()
+                }
+                .semantics { contentDescription = if (checked) "Mark $label not done" else "Complete $label" },
+            contentAlignment = Alignment.Center,
+        ) { CheckboxFace(pop, priority) }
     }
-    val shape = if (square) RoundedCornerShape(4.dp) else CircleShape
+}
+
+@Composable
+private fun CheckboxFace(pop: Float, priority: Int) {
+    Box(contentAlignment = Alignment.Center) {
+        if (pop < 0.5f) {
+            Box(Modifier.size(24.dp).alpha(1f - pop * 2).border(2.5.dp, priorityColor(priority), CircleShape))
+        }
+        if (pop > 0f) {
+            Surface(
+                shape = Scallop,
+                color = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(30.dp).graphicsLayer {
+                    scaleX = pop
+                    scaleY = pop
+                    rotationZ = (1f - pop) * -60f
+                },
+            ) {
+                Box(contentAlignment = Alignment.Center) { Icon(TasksIcons.Check, null, modifier = Modifier.size(20.dp)) }
+            }
+        }
+    }
+}
+
+/** Rounded-square checkbox for subtasks, so they read differently from tasks. */
+@Composable
+private fun SubtaskCheckbox(checked: Boolean, onToggle: () -> Unit, label: String) {
+    val shape = RoundedCornerShape(7.dp)
     Box(
-        modifier = Modifier
-            .size(size + 16.dp) // touch target
+        Modifier
+            .size(40.dp)
             .clip(CircleShape)
             .clickable(role = Role.Checkbox, onClick = onToggle)
             .semantics { contentDescription = if (checked) "Mark $label not done" else "Complete $label" },
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(size)
-                .clip(shape)
-                .background(if (checked) p.accent else Color.Transparent)
-                .border(1.5.dp, ring, shape),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (checked) Icon(TasksIcons.Check, null, tint = Color.White, modifier = Modifier.size(size * 0.65f))
+        if (checked) {
+            Box(Modifier.size(20.dp).background(MaterialTheme.colorScheme.primary, shape), contentAlignment = Alignment.Center) {
+                Icon(TasksIcons.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
+            }
+        } else {
+            Box(Modifier.size(20.dp).border(2.dp, MaterialTheme.colorScheme.outline, shape))
         }
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+/** A task as one item of a connected list ([index] of [count]). */
 @Composable
 fun TaskRow(
     task: TaskDto,
+    index: Int,
+    count: Int,
     showGroup: Boolean,
+    showDate: Boolean,
     onOpen: () -> Unit,
     onToggle: () -> Unit,
     onToggleSubtask: (SubtaskDto) -> Unit,
     onTagClick: (TagDto) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val p = palette
     val done = task.completed
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen)
-            .padding(start = 4.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        TaskCheckbox(done, task.priority, onToggle, label = task.title)
-        Column(modifier = Modifier.weight(1f).padding(top = 10.dp)) {
-            Text(
-                task.title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium, fontSize = 15.sp),
-                color = if (done) p.textTertiary else p.textPrimary,
-                textDecoration = if (done) TextDecoration.LineThrough else null,
-            )
-            if (!task.details.isNullOrBlank()) {
+    val fade by animateFloatAsState(if (done) 0.62f else 1f, label = "fade")
+    ConnectedItem(index, count, modifier = modifier, onClick = onOpen) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            TaskCheckbox(done, task.priority, onToggle, label = task.title)
+            Column(modifier = Modifier.weight(1f).padding(top = 12.dp).alpha(fade)) {
                 Text(
-                    task.details,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = p.textSecondary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp),
+                    task.title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium),
+                    color = if (done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                    textDecoration = if (done) TextDecoration.LineThrough else null,
                 )
+                if (!task.details.isNullOrBlank()) {
+                    Text(
+                        task.details,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+                TaskMeta(task, showGroup, showDate, onTagClick)
+                if (task.subtasks.isNotEmpty()) SubtaskPreview(task.subtasks, onToggleSubtask)
             }
-            TaskMeta(task, showGroup, onTagClick)
-            if (task.subtasks.isNotEmpty()) SubtaskPreview(task.subtasks, onToggleSubtask)
         }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TaskMeta(task: TaskDto, showGroup: Boolean, onTagClick: (TagDto) -> Unit) {
-    val p = palette
+private fun TaskMeta(task: TaskDto, showGroup: Boolean, showDate: Boolean, onTagClick: (TagDto) -> Unit) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val group = task.group?.takeIf { showGroup }
+    val date = task.date?.takeIf { showDate }
     val repeat = RepeatRule.fromWire(task.reminderRepeat)
-    val hasMeta = task.priority > 0 || group != null || task.date != null || task.reminder != null || task.tags.isNotEmpty()
+    val hasMeta = task.priority > 0 || group != null || date != null || task.reminder != null || task.tags.isNotEmpty()
     if (!hasMeta) return
     FlowRow(
         modifier = Modifier.padding(top = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        PriorityBadge(task.priority)
-        if (group != null) Chip(group.name, chipColors(p, group.color, group.fgColor, group.hasBg), pill = true)
-        if (task.date != null) {
+        // Urgency is spelled out too, so it never rests on the ring colour alone
+        if (task.priority > 0) MetaItem(TasksIcons.FireFilled, "Urgent", MaterialTheme.colorScheme.error)
+        if (date != null) {
             val color = when {
-                Dates.isOverdue(task.date) && !task.completed -> p.danger
-                Dates.isToday(task.date) -> p.accentText
-                else -> p.textTertiary
+                Dates.isOverdue(date) && !task.completed -> MaterialTheme.colorScheme.error
+                Dates.isToday(date) -> MaterialTheme.colorScheme.primary
+                else -> muted
             }
-            MetaItem(TasksIcons.Calendar, Dates.formatDate(task.date), color)
+            MetaItem(TasksIcons.Calendar, Dates.formatDate(date), color)
         }
-        if (task.reminder != null) {
-            MetaItem(TasksIcons.Bell, Dates.formatReminder(task.reminder), p.textTertiary) {
-                if (repeat != null) {
-                    Spacer(Modifier.width(2.dp))
-                    Icon(TasksIcons.Repeat, null, tint = p.textTertiary, modifier = Modifier.size(13.dp))
-                    Text(repeat.label, color = p.textTertiary, fontSize = 12.sp)
-                }
+        if (task.reminder != null) MetaItem(TasksIcons.Alarm, Dates.formatReminder(task.reminder), muted)
+        if (repeat != null && task.reminder != null) MetaItem(TasksIcons.Repeat, repeat.label, muted)
+        if (group != null) {
+            Row(Modifier.height(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(10.dp).background(parseHex(group.color), RoundedCornerShape(5.dp, 5.dp, 5.dp, 1.dp)))
+                Spacer(Modifier.width(5.dp))
+                Text(group.name, style = MaterialTheme.typography.labelMedium, color = muted, maxLines = 1)
             }
         }
         task.tags.sortedBy { it.rank() }.forEach { tag ->
             val kind = tag.isKind()
-            val colors = chipColors(p, tag.color, tag.fgColor, if (kind) 1 else tag.hasBg, tag.typeColor)
+            val colors = chipColors(tag.color, tag.fgColor, if (kind) 1 else tag.hasBg, tag.typeColor)
             val nameOnly = kind || tag.typeName.orEmpty().lowercase() in NAME_ONLY_TYPES
             Chip(tag.name, colors, label = if (nameOnly) null else tag.typeName ?: "Tag", pill = kind, onClick = { onTagClick(tag) })
         }
@@ -174,41 +236,38 @@ private fun TaskMeta(task: TaskDto, showGroup: Boolean, onTagClick: (TagDto) -> 
 
 @Composable
 private fun SubtaskPreview(subtasks: List<SubtaskDto>, onToggle: (SubtaskDto) -> Unit) {
-    val p = palette
     val done = subtasks.count { it.isCompleted != 0 }
-    Column(
-        modifier = Modifier
-            .padding(top = 10.dp)
-            .fillMaxWidth()
-            .background(p.muted.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
-            .padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 2.dp),
+    val progress by animateFloatAsState(done.toFloat() / subtasks.size, label = "subtasks")
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.padding(top = 10.dp).fillMaxWidth(),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            LinearProgressIndicator(
-                progress = { done.toFloat() / subtasks.size },
-                modifier = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(50)),
-                color = p.accent,
-                trackColor = p.border,
-                drawStopIndicator = {},
-                gapSize = 0.dp,
-            )
-            Spacer(Modifier.width(8.dp))
-            Text("$done/${subtasks.size}", fontSize = 12.sp, color = p.textTertiary)
-        }
-        subtasks.forEach { s ->
-            val checked = s.isCompleted != 0
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 0.dp)) {
-                // The checkbox's touch target overhangs to the left, keeping the box aligned with the progress bar
-                Box(modifier = Modifier.offset(x = (-8).dp)) {
-                    TaskCheckbox(checked, 0, { onToggle(s) }, size = 15.dp, square = true, label = s.title)
-                }
-                Text(
-                    s.title,
-                    modifier = Modifier.offset(x = (-6).dp),
-                    fontSize = 13.sp,
-                    color = if (checked) p.textTertiary else p.textSecondary,
-                    textDecoration = if (checked) TextDecoration.LineThrough else null,
+        Column(Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.weight(1f).height(6.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                    gapSize = 3.dp,
                 )
+                Spacer(Modifier.width(10.dp))
+                Text("$done/${subtasks.size}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            subtasks.forEach { s ->
+                val checked = s.isCompleted != 0
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // The checkbox's touch target overhangs to the left, keeping the box aligned with the bar
+                    Box(Modifier.offset(x = (-10).dp)) { SubtaskCheckbox(checked, { onToggle(s) }, s.title) }
+                    Text(
+                        s.title,
+                        modifier = Modifier.offset(x = (-8).dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textDecoration = if (checked) TextDecoration.LineThrough else null,
+                    )
+                }
             }
         }
     }

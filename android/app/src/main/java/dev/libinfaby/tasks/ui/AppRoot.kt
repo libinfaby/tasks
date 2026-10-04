@@ -1,41 +1,49 @@
 package dev.libinfaby.tasks.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarItem
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.libinfaby.tasks.data.api.GroupDto
+import dev.libinfaby.tasks.ui.components.ConnectedColumn
+import dev.libinfaby.tasks.ui.components.ConnectedItem
+import dev.libinfaby.tasks.ui.components.ListRow
+import dev.libinfaby.tasks.ui.components.Scallop
 import dev.libinfaby.tasks.ui.components.parseHex
+import dev.libinfaby.tasks.ui.components.tonalColors
 import dev.libinfaby.tasks.ui.daily.DailyScreen
 import dev.libinfaby.tasks.ui.daily.DailyViewModel
 import dev.libinfaby.tasks.ui.manage.GroupsScreen
@@ -47,8 +55,15 @@ import dev.libinfaby.tasks.ui.tasks.TaskListScreen
 import dev.libinfaby.tasks.ui.tasks.TaskListViewModel
 import dev.libinfaby.tasks.ui.tasks.TaskView
 import dev.libinfaby.tasks.ui.theme.TasksIcons
-import dev.libinfaby.tasks.ui.theme.palette
-import kotlinx.coroutines.launch
+
+private data class Tab(val destination: Destination, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
+
+private val TABS = listOf(
+    Tab(Destination.Tasks(TaskView.Today), "Today", TasksIcons.Today, TasksIcons.TodayFilled),
+    Tab(Destination.Tasks(TaskView.Upcoming), "Upcoming", TasksIcons.Upcoming, TasksIcons.UpcomingFilled),
+    Tab(Destination.Tasks(TaskView.All), "All tasks", TasksIcons.Inbox, TasksIcons.InboxFilled),
+    Tab(Destination.Daily(report = false), "Daily log", TasksIcons.DailyLog, TasksIcons.DailyLogFilled),
+)
 
 @Composable
 fun AppRoot(vm: AppViewModel) {
@@ -61,88 +76,71 @@ fun AppRoot(vm: AppViewModel) {
         return
     }
 
-    val p = palette
     val destination by vm.destination.collectAsStateWithLifecycle()
     val editorRequest by vm.editor.collectAsStateWithLifecycle()
     val groups by vm.groups.collectAsStateWithLifecycle()
     val counts by vm.openCounts.collectAsStateWithLifecycle()
-    val drawer = rememberDrawerState(DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
     val taskListVm: TaskListViewModel = hiltViewModel()
-    val openDrawer: () -> Unit = { scope.launch { drawer.open() } }
-
-    fun go(d: Destination) {
-        if (d is Destination.Tasks) taskListVm.setView(d.view)
-        vm.destination.value = d
-        scope.launch { drawer.close() }
-    }
+    var menuOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.syncOnOpen() }
-    // Back from any other screen returns to All Tasks before leaving the app
-    BackHandler(enabled = destination != Destination.Tasks(TaskView.All) && !drawer.isOpen) { go(Destination.Tasks(TaskView.All)) }
-    BackHandler(enabled = drawer.isOpen) { scope.launch { drawer.close() } }
+    LaunchedEffect(destination) { (destination as? Destination.Tasks)?.let { taskListVm.setView(it.view) } }
+    BackHandler(enabled = destination != Destination.Start) { vm.back() }
 
-    ModalNavigationDrawer(
-        drawerState = drawer,
-        drawerContent = {
-            ModalDrawerSheet(drawerContainerColor = p.bgSubtle, drawerShape = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)) {
-                Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
-                    Row(Modifier.padding(start = 8.dp, top = 20.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        BrandMark()
-                        Spacer(Modifier.width(10.dp))
-                        Text("Tasks", fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                    }
-                    DrawerSection("Tasks")
-                    listOf(
-                        Triple(TaskView.All, TasksIcons.Inbox, "All Tasks"),
-                        Triple(TaskView.Today, TasksIcons.CalendarCheck, "Today"),
-                        Triple(TaskView.Upcoming, TasksIcons.Clock, "Upcoming"),
-                        Triple(TaskView.Priority, TasksIcons.Flag, "Priority"),
-                        Triple(TaskView.Completed, TasksIcons.CircleCheck, "Completed"),
-                    ).forEach { (view, icon, label) ->
-                        DrawerItem(label, icon, destination == Destination.Tasks(view)) { go(Destination.Tasks(view)) }
-                    }
-                    DrawerSection("Daily Tasks")
-                    DrawerItem("Entry", TasksIcons.Clipboard, destination == Destination.DailyEntry) { go(Destination.DailyEntry) }
-                    DrawerItem("Report", TasksIcons.FileText, destination == Destination.DailyReport) { go(Destination.DailyReport) }
-                    if (groups.isNotEmpty()) {
-                        DrawerSection("Groups")
-                        groups.forEach { g ->
-                            val view = TaskView.Group(g.id, g.name)
-                            NavigationDrawerItem(
-                                label = { Text(g.name, fontSize = 14.sp) },
-                                selected = destination == Destination.Tasks(view),
-                                onClick = { go(Destination.Tasks(view)) },
-                                icon = { Box(Modifier.padding(horizontal = 4.dp).size(10.dp).clip(RoundedCornerShape(3.dp)).background(parseHex(g.color))) },
-                                badge = { Text((counts[g.id] ?: 0).toString(), fontSize = 12.sp, color = p.textTertiary) },
-                                colors = drawerColors(),
-                                modifier = Modifier.padding(vertical = 1.dp),
-                            )
+    Scaffold(
+        // Each screen handles its own top inset; the bottom bar pads for the navigation bar itself
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        bottomBar = {
+            if (destination.isRoot) {
+                ShortNavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+                    TABS.forEach { tab ->
+                        val selected = when (val d = destination) {
+                            is Destination.Daily -> tab.destination is Destination.Daily
+                            else -> d == tab.destination
                         }
+                        ShortNavigationBarItem(
+                            selected = selected,
+                            onClick = { if (!selected) vm.go(tab.destination) },
+                            icon = { Icon(if (selected) tab.selectedIcon else tab.icon, null) },
+                            label = { Text(tab.label) },
+                        )
                     }
-                    DrawerSection("Manage")
-                    DrawerItem("Tags", TasksIcons.Tag, destination == Destination.Tags) { go(Destination.Tags) }
-                    DrawerItem("Groups", TasksIcons.Layers, destination == Destination.Groups) { go(Destination.Groups) }
-                    DrawerItem("Settings", TasksIcons.Settings, destination == Destination.Settings) { go(Destination.Settings) }
-                    Spacer(Modifier.padding(bottom = 16.dp))
                 }
             }
         },
-    ) {
-        Box(Modifier.fillMaxSize()) {
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
             when (val d = destination) {
                 is Destination.Tasks -> TaskListScreen(
                     vm = taskListVm,
-                    onOpenDrawer = openDrawer,
                     onOpenTask = { vm.editor.value = EditorRequest(it) },
                     onNewTask = vm::openNewTask,
+                    onOpenMenu = { menuOpen = true },
+                    onOpenGroup = { vm.go(Destination.Tasks(it)) },
+                    onBack = if (d.isRoot) null else ({ vm.back() }),
                 )
-                Destination.DailyEntry -> DailyScreen(hiltViewModel<DailyViewModel>(key = "entry"), report = false, onOpenDrawer = openDrawer)
-                Destination.DailyReport -> DailyScreen(hiltViewModel<DailyViewModel>(key = "report"), report = true, onOpenDrawer = openDrawer)
-                Destination.Tags -> TagsScreen(hiltViewModel<ManageViewModel>(), openDrawer)
-                Destination.Groups -> GroupsScreen(hiltViewModel<ManageViewModel>(), openDrawer)
-                Destination.Settings -> SettingsScreen(s, vm::setTheme, onSignOut = { vm.signOut() }, onOpenDrawer = openDrawer)
+                is Destination.Daily -> DailyScreen(
+                    hiltViewModel<DailyViewModel>(key = if (d.report) "report" else "entry"),
+                    report = d.report,
+                    onReport = { vm.go(Destination.Daily(it)) },
+                )
+                Destination.Tags -> TagsScreen(hiltViewModel<ManageViewModel>(), onBack = { vm.back() })
+                Destination.Groups -> GroupsScreen(hiltViewModel<ManageViewModel>(), onBack = { vm.back() })
+                Destination.Settings -> SettingsScreen(
+                    s,
+                    onTheme = vm::setTheme,
+                    onWallpaperColors = vm::setWallpaperColors,
+                    onSignOut = { vm.signOut() },
+                    onBack = { vm.back() },
+                )
             }
+        }
+    }
+
+    if (menuOpen) {
+        MenuSheet(groups, counts, onDismiss = { menuOpen = false }) { d ->
+            menuOpen = false
+            vm.go(d)
         }
     }
 
@@ -153,35 +151,56 @@ fun AppRoot(vm: AppViewModel) {
     }
 }
 
+/** Everything that used to live in the drawer: groups to jump into, then Tags, Groups and Settings. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DrawerSection(title: String) {
-    Text(
-        title,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Medium,
-        color = palette.textTertiary,
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 14.dp, bottom = 4.dp),
-    )
+private fun MenuSheet(groups: List<GroupDto>, counts: Map<Long, Int>, onDismiss: () -> Unit, onGo: (Destination) -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 24.dp)) {
+            Row(Modifier.padding(start = 4.dp, bottom = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                BrandMark(44)
+                Spacer(Modifier.width(14.dp))
+                Text("Tasks", style = MaterialTheme.typography.headlineMedium)
+            }
+            if (groups.isNotEmpty()) {
+                MenuLabel("Your groups")
+                ConnectedColumn {
+                    groups.forEachIndexed { i, g ->
+                        val tint = tonalColors(parseHex(g.color))
+                        ConnectedItem(i, groups.size, onClick = { onGo(Destination.Tasks(TaskView.Group(g.id, g.name))) }) {
+                            ListRow(
+                                title = g.name,
+                                icon = TasksIcons.GroupFilled,
+                                iconContainer = tint.container,
+                                iconContent = tint.content,
+                                iconShape = RoundedCornerShape(15.dp, 15.dp, 15.dp, 5.dp),
+                            ) {
+                                Text("${counts[g.id] ?: 0}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+            }
+            MenuLabel("Manage")
+            ConnectedColumn {
+                ConnectedItem(0, 3, onClick = { onGo(Destination.Tags) }) { ListRow("Tags", supporting = "Tag types and their colours", icon = TasksIcons.TagFilled) }
+                ConnectedItem(1, 3, onClick = { onGo(Destination.Groups) }) { ListRow("Groups", supporting = "Create, rename and recolour", icon = TasksIcons.GroupFilled) }
+                ConnectedItem(2, 3, onClick = { onGo(Destination.Settings) }) { ListRow("Settings", supporting = "Theme, reminders and sync", icon = TasksIcons.Settings) }
+            }
+        }
+    }
 }
 
 @Composable
-private fun DrawerItem(label: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
-    NavigationDrawerItem(
-        label = { Text(label, fontSize = 14.sp) },
-        selected = selected,
-        onClick = onClick,
-        icon = { Icon(icon, null, modifier = Modifier.size(18.dp)) },
-        colors = drawerColors(),
-        modifier = Modifier.padding(vertical = 1.dp),
-    )
+private fun MenuLabel(text: String) {
+    Text(text, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
 }
 
+/** The app mark: a checklist in a primary scallop. */
 @Composable
-private fun drawerColors() = NavigationDrawerItemDefaults.colors(
-    selectedContainerColor = palette.muted,
-    unselectedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
-    selectedTextColor = palette.textPrimary,
-    unselectedTextColor = palette.textSecondary,
-    selectedIconColor = palette.accentText,
-    unselectedIconColor = palette.textTertiary,
-)
+fun BrandMark(size: Int = 40) {
+    Surface(shape = Scallop, color = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(size.dp)) {
+        Box(contentAlignment = Alignment.Center) { Icon(TasksIcons.Checklist, null, modifier = Modifier.size((size * 0.5f).dp)) }
+    }
+}

@@ -5,6 +5,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -27,6 +28,7 @@ data class Settings(
     val token: String? = null,
     val apiUrl: String = BuildConfig.API_BASE_URL,
     val theme: ThemeMode = ThemeMode.SYSTEM,
+    val wallpaperColors: Boolean = true,
     val lastSyncAt: Long = 0,
 ) {
     val signedIn get() = token != null
@@ -40,6 +42,7 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
         val token = stringPreferencesKey("token_enc")
         val apiUrl = stringPreferencesKey("api_url")
         val theme = stringPreferencesKey("theme")
+        val wallpaperColors = booleanPreferencesKey("wallpaper_colors")
         val lastSync = longPreferencesKey("last_sync_at")
     }
 
@@ -48,6 +51,7 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
             token = p[Keys.token]?.let { TokenCipher.decrypt(it) },
             apiUrl = p[Keys.apiUrl] ?: BuildConfig.API_BASE_URL,
             theme = p[Keys.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
+            wallpaperColors = p[Keys.wallpaperColors] ?: true,
             lastSyncAt = p[Keys.lastSync] ?: 0,
         )
     }
@@ -61,6 +65,8 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
     }
 
     suspend fun setTheme(mode: ThemeMode) = context.dataStore.edit { it[Keys.theme] = mode.name }
+
+    suspend fun setWallpaperColors(on: Boolean) = context.dataStore.edit { it[Keys.wallpaperColors] = on }
 
     suspend fun setLastSync(at: Long) = context.dataStore.edit { it[Keys.lastSync] = at }
 

@@ -56,6 +56,9 @@ data class SubtaskDto(
     val tags: List<TagDto> = emptyList(),
 )
 
+/** The only raised priority. High (1) was retired: the server stores any non-zero priority as urgent. */
+const val PRIORITY_URGENT = 2
+
 @Serializable
 data class TaskDto(
     val id: Long,

@@ -3,6 +3,7 @@ package dev.libinfaby.tasks.ui.tasks
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.libinfaby.tasks.data.api.GroupDto
+import dev.libinfaby.tasks.data.api.PRIORITY_URGENT
 import dev.libinfaby.tasks.data.api.TagTypeDto
 import dev.libinfaby.tasks.data.api.TagWrite
 import dev.libinfaby.tasks.data.api.TaskDto
@@ -68,7 +69,7 @@ class TaskEditorViewModel @Inject constructor(private val repo: TasksRepository)
                 date = Dates.parseDate(task.date),
                 reminder = Dates.parseInstant(task.reminder)?.atZone(ZoneId.systemDefault())?.toLocalDateTime(),
                 repeat = RepeatRule.fromWire(task.reminderRepeat),
-                priority = task.priority,
+                priority = if (task.priority > 0) PRIORITY_URGENT else 0,
                 groupId = task.groupId,
                 tagIds = task.tags.map { it.id }.toSet(),
                 subtasks = task.subtasks.map { SubtaskRow(nextKey++, it.id, it.title, it.tags.map { t -> t.id }.toSet()) },

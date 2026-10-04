@@ -32,7 +32,8 @@ For a stable release signature, add `keystore.properties` (git-ignored) with `st
 | Recurring reminders (mirror of `worker/src/utils/recurrence.ts`) | `domain/Recurrence.kt` |
 | 15-minute background sync + token refresh | `sync/SyncWorker.kt` |
 | Home-screen widget (today + overdue, tap to complete) | `widget/` |
-| Theme = web design tokens (`frontend/css/tokens.md`) | `ui/theme/` |
+| Material 3 Expressive theme: wallpaper colours (Grape fallback), Bricolage Grotesque + Figtree, Material Symbols | `ui/theme/`, `res/font/` |
+| Expressive pieces: scallop shape, connected lists, wavy ring, confetti, morphing button group | `ui/components/Expressive.kt` |
 
 - **Reads** come from the cache (works offline); **completed tasks and searches** query the server, like the web app.
 - **Writes** go straight to the API (no offline queue yet), then the cache refreshes.

@@ -1,14 +1,14 @@
 package dev.libinfaby.tasks.ui.tasks
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,61 +21,73 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.libinfaby.tasks.data.api.GroupDto
+import dev.libinfaby.tasks.data.api.PRIORITY_URGENT
 import dev.libinfaby.tasks.data.api.TagTypeDto
 import dev.libinfaby.tasks.domain.Dates
 import dev.libinfaby.tasks.domain.RepeatRule
+import dev.libinfaby.tasks.ui.components.ChipColors
 import dev.libinfaby.tasks.ui.components.ConfirmDialog
+import dev.libinfaby.tasks.ui.components.ConnectedColumn
+import dev.libinfaby.tasks.ui.components.ConnectedItem
+import dev.libinfaby.tasks.ui.components.ConnectedToggleGroup
 import dev.libinfaby.tasks.ui.components.DatePickerDialogFor
 import dev.libinfaby.tasks.ui.components.FieldLabel
-import dev.libinfaby.tasks.ui.components.PickerField
-import dev.libinfaby.tasks.ui.components.SelectField
+import dev.libinfaby.tasks.ui.components.ListRow
 import dev.libinfaby.tasks.ui.components.TimePickerDialogFor
+import dev.libinfaby.tasks.ui.components.ToggleColors
 import dev.libinfaby.tasks.ui.components.chipColors
 import dev.libinfaby.tasks.ui.components.parseHex
-import dev.libinfaby.tasks.ui.components.tasksFieldColors
+import dev.libinfaby.tasks.ui.components.tonalColors
 import dev.libinfaby.tasks.ui.theme.TasksIcons
-import dev.libinfaby.tasks.ui.theme.Tokens
-import dev.libinfaby.tasks.ui.theme.palette
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskEditorSheet(vm: TaskEditorViewModel, onDismiss: () -> Unit) {
-    val p = palette
     val draft by vm.draft.collectAsStateWithLifecycle()
     val tagTypes by vm.tagTypes.collectAsStateWithLifecycle()
     val groups by vm.groups.collectAsStateWithLifecycle()
@@ -84,121 +96,77 @@ fun TaskEditorSheet(vm: TaskEditorViewModel, onDismiss: () -> Unit) {
     var pickReminderDate by remember { mutableStateOf(false) }
     var pickReminderTime by remember { mutableStateOf<LocalDateTime?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var choosingTags by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheet,
-        containerColor = p.card,
-        dragHandle = null,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
     ) {
         Column(Modifier.imePadding()) {
-            // Header
-            Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(if (draft.isEdit) "Edit task" else "New task", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss) { Icon(TasksIcons.X, "Close", tint = p.textTertiary) }
-            }
-            Box(Modifier.fillMaxWidth().height(1.dp).background(p.border))
-
             Column(
-                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                OutlinedTextField(
-                    value = draft.title,
-                    onValueChange = { v -> vm.update { it.copy(title = v) } },
-                    placeholder = { Text("What needs to be done?") },
-                    label = { Text("Title") },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    colors = tasksFieldColors(),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = draft.details,
-                    onValueChange = { v -> vm.update { it.copy(details = v) } },
-                    placeholder = { Text("Add more details…") },
-                    label = { Text("Details") },
-                    minLines = 3,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    colors = tasksFieldColors(),
-                    modifier = Modifier.fillMaxWidth(),
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (draft.isEdit) "Edit task" else "New task", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                    GroupPicker(groups, groups.firstOrNull { it.id == draft.groupId }) { g -> vm.update { it.copy(groupId = g?.id) } }
+                }
+
+                TitleAndDetails(
+                    title = draft.title,
+                    details = draft.details,
+                    autofocus = !draft.isEdit,
+                    onTitle = { v -> vm.update { it.copy(title = v) } },
+                    onDetails = { v -> vm.update { it.copy(details = v) } },
                 )
 
                 Column {
-                    FieldLabel("Date")
-                    PickerField(
-                        value = draft.date?.let { Dates.longLabel(it) }.orEmpty(),
-                        placeholder = "No date",
-                        icon = TasksIcons.Calendar,
-                        onClick = { pickDate = true },
-                        onClear = { vm.update { it.copy(date = null) } },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    FieldLabel("When")
+                    WhenChips(draft.date, onPick = { d -> vm.update { it.copy(date = d) } }, onCustom = { pickDate = true })
                 }
 
-                Column {
-                    FieldLabel("Reminder")
-                    PickerField(
-                        value = draft.reminder?.let { r ->
-                            Dates.formatReminder(r.atZone(java.time.ZoneId.systemDefault()).toInstant().toString())
-                        }.orEmpty(),
-                        placeholder = "No reminder",
-                        icon = TasksIcons.Bell,
-                        onClick = { pickReminderDate = true },
-                        onClear = { vm.update { it.copy(reminder = null, repeat = null) } },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    if (draft.reminder != null) {
-                        Spacer(Modifier.height(10.dp))
-                        SelectField(
-                            value = draft.repeat,
-                            options = listOf<RepeatRule?>(null) + RepeatRule.entries,
-                            label = { it?.label ?: "Does not repeat" },
-                            onSelect = { r -> vm.update { it.copy(repeat = r) } },
-                            leading = { Icon(TasksIcons.Repeat, null, tint = p.textTertiary, modifier = Modifier.padding(end = 8.dp).size(16.dp)) },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                }
+                ReminderCard(
+                    reminder = draft.reminder,
+                    repeat = draft.repeat,
+                    onEnable = {
+                        val day = draft.date ?: Dates.today()
+                        val now = LocalDateTime.now()
+                        // An hour from now (on the hour) for today, otherwise 9 AM
+                        val time = if (day == now.toLocalDate()) now.plusHours(1).truncatedTo(ChronoUnit.HOURS).toLocalTime() else LocalTime.of(9, 0)
+                        pickReminderTime = LocalDateTime.of(day, time)
+                    },
+                    onDisable = { vm.update { it.copy(reminder = null, repeat = null) } },
+                    onEdit = { pickReminderDate = true },
+                    onRepeat = { r -> vm.update { it.copy(repeat = r) } },
+                )
 
                 Column {
                     FieldLabel("Priority")
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        listOf("Normal", "High", "Urgent").forEachIndexed { i, label ->
-                            SegmentedButton(
-                                selected = draft.priority == i,
-                                onClick = { vm.update { it.copy(priority = i) } },
-                                shape = SegmentedButtonDefaults.itemShape(i, 3),
-                                icon = {},
-                                colors = SegmentedButtonDefaults.colors(
-                                    activeContainerColor = when (i) { 2 -> p.urgentSoft; 1 -> p.highSoft; else -> p.accentSoft },
-                                    activeContentColor = when (i) { 2 -> p.urgent; 1 -> p.high; else -> p.accentText },
-                                    inactiveContainerColor = p.card,
-                                    activeBorderColor = p.borderStrong,
-                                    inactiveBorderColor = p.borderStrong,
-                                ),
-                            ) { Text(label, fontSize = 13.sp) }
-                        }
-                    }
-                }
-
-                Column {
-                    FieldLabel("Group")
-                    SelectField(
-                        value = groups.firstOrNull { it.id == draft.groupId },
-                        options = listOf<GroupDto?>(null) + groups,
-                        label = { it?.name ?: "No group" },
-                        onSelect = { g -> vm.update { it.copy(groupId = g?.id) } },
-                        leading = { g ->
-                            if (g != null) Box(Modifier.padding(end = 8.dp).size(10.dp).clip(RoundedCornerShape(3.dp)).background(parseHex(g.color)))
+                    ConnectedToggleGroup(
+                        options = listOf(0, PRIORITY_URGENT),
+                        selected = draft.priority,
+                        onSelect = { p -> vm.update { it.copy(priority = p) } },
+                        label = { if (it == 0) "Normal" else "Urgent" },
+                        icon = { p, sel ->
+                            when {
+                                p == 0 -> TasksIcons.Block
+                                sel -> TasksIcons.FireFilled
+                                else -> TasksIcons.Fire
+                            }
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        selectedColors = { p ->
+                            if (p == 0) ToggleColors(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
+                            else ToggleColors(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer)
+                        },
+                        height = 52.dp,
                     )
                 }
 
                 Column {
                     FieldLabel("Tags")
-                    TagSelector(tagTypes, draft.tagIds, vm::toggleTag, onCreate = vm::createTag)
+                    SelectedTags(tagTypes, draft.tagIds, onRemove = vm::toggleTag, onAdd = { choosingTags = true })
                 }
 
                 Column {
@@ -206,37 +174,42 @@ fun TaskEditorSheet(vm: TaskEditorViewModel, onDismiss: () -> Unit) {
                     SubtaskEditor(draft.subtasks, tagTypes, vm)
                 }
 
-                draft.error?.let { Text(it, color = p.danger, style = MaterialTheme.typography.bodySmall) }
+                draft.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
             }
 
-            // Footer
-            Box(Modifier.fillMaxWidth().height(1.dp).background(p.border))
             Row(
-                Modifier.fillMaxWidth().background(p.bgSubtle).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+                Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (draft.isEdit) {
-                    TextButton(onClick = { confirmDelete = true }, enabled = !draft.saving) {
-                        Icon(TasksIcons.Trash, null, tint = p.danger, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Delete", color = p.danger)
-                    }
+                    FilledTonalIconButton(
+                        onClick = { confirmDelete = true },
+                        enabled = !draft.saving,
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        ),
+                        modifier = Modifier.size(48.dp),
+                    ) { Icon(TasksIcons.Delete, "Delete task") }
                 }
                 Spacer(Modifier.weight(1f))
-                OutlinedButton(onClick = onDismiss, border = BorderStroke(1.dp, p.borderStrong), shape = RoundedCornerShape(6.dp)) {
-                    Text("Cancel", color = p.textPrimary)
-                }
+                TextButton(onClick = onDismiss, modifier = Modifier.height(48.dp)) { Text("Cancel", style = MaterialTheme.typography.titleMedium) }
                 Spacer(Modifier.width(8.dp))
                 Button(
                     onClick = { vm.save(onDismiss) },
                     enabled = !draft.saving,
-                    shape = RoundedCornerShape(6.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = Color.White),
-                ) { Text(if (draft.saving) "Saving…" else if (draft.isEdit) "Save changes" else "Create task") }
+                    contentPadding = PaddingValues(start = 22.dp, end = 28.dp),
+                    modifier = Modifier.height(56.dp),
+                ) {
+                    Icon(TasksIcons.Check, null, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (draft.saving) "Saving…" else if (draft.isEdit) "Save" else "Add task", style = MaterialTheme.typography.titleMedium)
+                }
             }
         }
     }
 
+    if (choosingTags) TagPickerSheet(tagTypes, draft.tagIds, vm::toggleTag, vm::createTag) { choosingTags = false }
     if (pickDate) DatePickerDialogFor(draft.date, onDismiss = { pickDate = false }) { d -> vm.update { it.copy(date = d) } }
     if (pickReminderDate) {
         DatePickerDialogFor(draft.reminder?.toLocalDate() ?: draft.date, onDismiss = { pickReminderDate = false }) { d ->
@@ -256,38 +229,272 @@ fun TaskEditorSheet(vm: TaskEditorViewModel, onDismiss: () -> Unit) {
     }
 }
 
+@Composable
+private fun TitleAndDetails(title: String, details: String, autofocus: Boolean, onTitle: (String) -> Unit, onDetails: (String) -> Unit) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { if (autofocus) runCatching { focus.requestFocus() } }
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box {
+            if (title.isEmpty()) Text("What needs doing?", style = MaterialTheme.typography.headlineMedium, color = muted.copy(alpha = 0.6f))
+            BasicTextField(
+                value = title,
+                onValueChange = onTitle,
+                textStyle = MaterialTheme.typography.headlineMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = "Title" },
+            )
+        }
+        // A roomy box for notes: five lines tall to start, growing as they write
+        Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
+                Icon(TasksIcons.Notes, null, tint = muted)
+                Spacer(Modifier.width(12.dp))
+                Box(Modifier.weight(1f)) {
+                    if (details.isEmpty()) Text("Add details", style = MaterialTheme.typography.bodyLarge, color = muted)
+                    BasicTextField(
+                        value = details,
+                        onValueChange = onDetails,
+                        minLines = 5,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Details" },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Header chip that picks the task's group, tinted with the group's colour. */
+@Composable
+private fun GroupPicker(groups: List<GroupDto>, current: GroupDto?, onPick: (GroupDto?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val tint = current?.let { tonalColors(parseHex(it.color)) }
+        ?: ToggleColors(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.colorScheme.onSurfaceVariant)
+    Box {
+        Surface(
+            onClick = { open = true },
+            shape = RoundedCornerShape(20.dp),
+            color = tint.container,
+            contentColor = tint.content,
+            modifier = Modifier.height(40.dp).semantics { contentDescription = "Group: ${current?.name ?: "none"}. Change group" },
+        ) {
+            Row(Modifier.padding(start = 12.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (current != null) GroupDot(current.color) else Icon(TasksIcons.Group, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(current?.name ?: "No group", style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                Icon(TasksIcons.DropDown, null)
+            }
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = RoundedCornerShape(16.dp)) {
+            DropdownMenuItem(text = { Text("No group") }, leadingIcon = { Icon(TasksIcons.Block, null) }, onClick = { onPick(null); open = false })
+            groups.forEach { g ->
+                DropdownMenuItem(text = { Text(g.name) }, leadingIcon = { GroupDot(g.color) }, onClick = { onPick(g); open = false })
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupDot(color: String?) {
+    Box(Modifier.size(12.dp).background(parseHex(color), RoundedCornerShape(6.dp, 6.dp, 6.dp, 2.dp)))
+}
+
+private enum class WhenOption(val label: String, val icon: ImageVector?) {
+    NONE("No date", TasksIcons.EventBusy),
+    TODAY("Today", null),
+    TOMORROW("Tomorrow", null),
+    CUSTOM("Pick date", TasksIcons.EditCalendar),
+}
+
+/** One-tap dates. The selected chip rounds off into a pill; a custom date shows on the last chip. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WhenChips(date: LocalDate?, onPick: (LocalDate?) -> Unit, onCustom: () -> Unit) {
+    val today = Dates.today()
+    val presets = mapOf(
+        WhenOption.TODAY to today,
+        WhenOption.TOMORROW to today.plusDays(1),
+    )
+    val selected = when (date) {
+        null -> WhenOption.NONE
+        else -> presets.entries.firstOrNull { it.value == date }?.key ?: WhenOption.CUSTOM
+    }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        WhenOption.entries.forEach { option ->
+            val isSelected = option == selected
+            val corner by animateDpAsState(if (isSelected) 18.dp else 10.dp, label = "when")
+            val label = if (option == WhenOption.CUSTOM && isSelected && date != null) Dates.label(date) else option.label
+            FilterChip(
+                selected = isSelected,
+                onClick = {
+                    when (option) {
+                        WhenOption.NONE -> onPick(null)
+                        WhenOption.CUSTOM -> onCustom()
+                        else -> onPick(presets.getValue(option))
+                    }
+                },
+                label = { Text(label, style = MaterialTheme.typography.labelLarge) },
+                leadingIcon = when {
+                    isSelected -> ({ Icon(TasksIcons.Check, null, modifier = Modifier.size(18.dp)) })
+                    option.icon != null -> ({ Icon(option.icon, null, modifier = Modifier.size(18.dp)) })
+                    else -> null
+                },
+                shape = RoundedCornerShape(corner),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    selectedLeadingIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ),
+                modifier = Modifier.height(36.dp),
+            )
+        }
+    }
+}
+
+/** Reminder on/off with its time, and (when on) the repeat rule, as one connected group. */
+@Composable
+private fun ReminderCard(
+    reminder: LocalDateTime?,
+    repeat: RepeatRule?,
+    onEnable: () -> Unit,
+    onDisable: () -> Unit,
+    onEdit: () -> Unit,
+    onRepeat: (RepeatRule?) -> Unit,
+) {
+    val on = reminder != null
+    val label = reminder?.let { "${Dates.label(it.toLocalDate())} · ${Dates.formatTime(it.atZone(ZoneId.systemDefault()).toInstant())}" }
+    var repeatMenu by remember { mutableStateOf(false) }
+    ConnectedColumn {
+        ConnectedItem(0, if (on) 2 else 1, onClick = if (on) onEdit else onEnable) {
+            ListRow(
+                title = "Reminder",
+                supporting = label ?: "Off",
+                icon = TasksIcons.Alarm,
+                iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
+                iconContent = MaterialTheme.colorScheme.onTertiaryContainer,
+            ) {
+                Switch(
+                    checked = on,
+                    onCheckedChange = { if (it) onEnable() else onDisable() },
+                    thumbContent = if (on) ({ Icon(TasksIcons.Check, null, modifier = Modifier.size(16.dp)) }) else null,
+                )
+            }
+        }
+        AnimatedVisibility(on) {
+            Box {
+                ConnectedItem(1, 2, onClick = { repeatMenu = true }) {
+                    ListRow(title = "Repeat", supporting = repeat?.label ?: "Does not repeat", icon = TasksIcons.Repeat, iconShape = CircleShape) {
+                        Icon(TasksIcons.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                DropdownMenu(expanded = repeatMenu, onDismissRequest = { repeatMenu = false }, shape = RoundedCornerShape(16.dp)) {
+                    (listOf<RepeatRule?>(null) + RepeatRule.entries).forEach { r ->
+                        DropdownMenuItem(
+                            text = { Text(r?.label ?: "Does not repeat") },
+                            trailingIcon = if (r == repeat) ({ Icon(TasksIcons.Check, null) }) else null,
+                            onClick = { onRepeat(r); repeatMenu = false },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The task's tags as removable chips, plus an Add tag chip that opens the picker. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SelectedTags(tagTypes: List<TagTypeDto>, selected: Set<Long>, onRemove: (Long) -> Unit, onAdd: () -> Unit) {
+    val chosen = tagTypes.flatMap { type -> type.tags.filter { it.id in selected }.map { type to it } }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        chosen.forEach { (type, tag) ->
+            val colors = chipColors(tag.color, tag.fgColor, tag.hasBg, type.color, type.fgColor, type.hasBg)
+            val container = if (colors.filled) colors.background else MaterialTheme.colorScheme.secondaryContainer
+            val content = if (colors.filled) colors.content else MaterialTheme.colorScheme.onSecondaryContainer
+            Surface(shape = RoundedCornerShape(10.dp), color = container, contentColor = content, modifier = Modifier.height(36.dp)) {
+                Row(Modifier.padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(tag.name, style = MaterialTheme.typography.labelLarge)
+                    IconButton(onClick = { onRemove(tag.id) }, modifier = Modifier.size(36.dp)) {
+                        Icon(TasksIcons.Close, "Remove tag ${tag.name}", modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+        }
+        Surface(
+            onClick = onAdd,
+            shape = RoundedCornerShape(10.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            modifier = Modifier.height(36.dp),
+        ) {
+            Row(Modifier.padding(start = 10.dp, end = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(TasksIcons.Add, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(if (chosen.isEmpty()) "Add tags" else "Add tag", style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TagPickerSheet(
+    tagTypes: List<TagTypeDto>,
+    selected: Set<Long>,
+    onToggle: (Long) -> Unit,
+    onCreate: (TagTypeDto, String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Tags", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                Button(onClick = onDismiss) { Text("Done") }
+            }
+            Spacer(Modifier.height(16.dp))
+            TagSelector(tagTypes, selected, onToggle, onCreate)
+        }
+    }
+}
+
 /** Tag options grouped by type: outlined when off, filled when on (as on the web form). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TagSelector(tagTypes: List<TagTypeDto>, selected: Set<Long>, onToggle: (Long) -> Unit, onCreate: ((TagTypeDto, String) -> Unit)? = null) {
-    val p = palette
     var creatingIn by remember { mutableStateOf<TagTypeDto?>(null) }
     if (tagTypes.isEmpty()) {
-        Text("No tag types yet — create them under Manage › Tags.", color = p.textTertiary, style = MaterialTheme.typography.bodySmall)
+        Text("No tag types yet. Create them from the menu, under Tags.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
         return
     }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         tagTypes.forEach { type ->
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(type.name, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = p.textTertiary, modifier = Modifier.weight(1f))
+                    Text(type.name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                     if (onCreate != null) {
-                        Text(
-                            "+ New",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = p.accentText,
-                            modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { creatingIn = type }.padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
+                        TextButton(onClick = { creatingIn = type }) {
+                            Icon(TasksIcons.Add, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("New")
+                        }
                     }
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(4.dp))
                 if (type.tags.isEmpty()) {
-                    Text("No tags yet", fontSize = 12.sp, color = p.textTertiary)
+                    Text("No tags yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         type.tags.forEach { tag ->
-                            TagOption(tag.name, chipColors(p, tag.color, tag.fgColor, tag.hasBg, type.color, type.fgColor, type.hasBg), tag.id in selected, p) {
+                            TagOption(tag.name, chipColors(tag.color, tag.fgColor, tag.hasBg, type.color, type.fgColor, type.hasBg), tag.id in selected) {
                                 onToggle(tag.id)
                             }
                         }
@@ -302,86 +509,79 @@ fun TagSelector(tagTypes: List<TagTypeDto>, selected: Set<Long>, onToggle: (Long
 }
 
 @Composable
-private fun TagOption(name: String, colors: dev.libinfaby.tasks.ui.components.ChipColors, selected: Boolean, p: Tokens.Palette, onClick: () -> Unit) {
-    val primary = if (colors.filled) colors.background.let { bg ->
-        // An outlined chip in a near-white colour would vanish on light surfaces
-        if (kotlin.math.abs(bg.luminanceCompat() - p.card.luminanceCompat()) < 0.15f) p.textSecondary else bg
-    } else colors.content
-    val shape = RoundedCornerShape(50)
-    Box(
-        Modifier
-            .height(30.dp)
-            .clip(shape)
-            .background(if (selected) colors.background.takeIf { colors.filled } ?: p.accentSoft else Color.Transparent)
-            .border(1.dp, if (selected) Color.Transparent else primary.copy(alpha = 0.6f), shape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            name,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            color = if (selected) (if (colors.filled) colors.content else p.accentText) else primary.copy(alpha = 0.8f),
-        )
-    }
+private fun TagOption(name: String, colors: ChipColors, selected: Boolean, onClick: () -> Unit) {
+    val corner by animateDpAsState(if (selected) 18.dp else 10.dp, label = "tag")
+    val selectedContainer = if (colors.filled) colors.background else MaterialTheme.colorScheme.secondaryContainer
+    val selectedContent = if (colors.filled) colors.content else MaterialTheme.colorScheme.onSecondaryContainer
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(name, style = MaterialTheme.typography.labelLarge) },
+        leadingIcon = if (selected) ({ Icon(TasksIcons.Check, null, modifier = Modifier.size(18.dp)) }) else null,
+        shape = RoundedCornerShape(corner),
+        colors = FilterChipDefaults.filterChipColors(
+            labelColor = if (colors.filled) MaterialTheme.colorScheme.onSurfaceVariant else colors.content,
+            selectedContainerColor = selectedContainer,
+            selectedLabelColor = selectedContent,
+            selectedLeadingIconColor = selectedContent,
+        ),
+        modifier = Modifier.height(36.dp),
+    )
 }
-
-private fun Color.luminanceCompat() = 0.2126f * red + 0.7152f * green + 0.0722f * blue
 
 @Composable
 private fun SubtaskEditor(rows: List<SubtaskRow>, tagTypes: List<TagTypeDto>, vm: TaskEditorViewModel) {
-    val p = palette
     var tagging by remember { mutableStateOf<Long?>(null) }
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        rows.forEach { row ->
-            Column {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, p.borderStrong, RoundedCornerShape(6.dp))
-                        .padding(start = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    androidx.compose.foundation.text.BasicTextField(
-                        value = row.title,
-                        onValueChange = { v -> vm.editSubtask(row.key) { it.copy(title = v) } },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = p.textPrimary),
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(p.accent),
-                        decorationBox = { inner ->
-                            Box(Modifier.padding(horizontal = 8.dp, vertical = 12.dp)) {
-                                if (row.title.isEmpty()) Text("Subtask title…", color = p.textTertiary, style = MaterialTheme.typography.bodyMedium)
-                                inner()
+    val count = rows.size + 1
+    ConnectedColumn {
+        rows.forEachIndexed { i, row ->
+            ConnectedItem(i, count) {
+                Column {
+                    Row(Modifier.padding(start = 18.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
+                        Spacer(Modifier.width(14.dp))
+                        Box(Modifier.weight(1f).padding(vertical = 14.dp)) {
+                            if (row.title.isEmpty()) Text("Subtask", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            BasicTextField(
+                                value = row.title,
+                                onValueChange = { v -> vm.editSubtask(row.key) { it.copy(title = v) } },
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        if (tagTypes.isNotEmpty()) {
+                            IconButton(onClick = { tagging = if (tagging == row.key) null else row.key }) {
+                                Icon(
+                                    if (row.tagIds.isNotEmpty()) TasksIcons.TagFilled else TasksIcons.Tag,
+                                    "Subtask tags",
+                                    tint = if (row.tagIds.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp),
+                                )
                             }
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (tagTypes.isNotEmpty()) {
-                        IconButton(onClick = { tagging = if (tagging == row.key) null else row.key }) {
-                            Icon(TasksIcons.Tag, "Subtask tags", tint = if (row.tagIds.isNotEmpty()) p.accentText else p.textTertiary, modifier = Modifier.size(16.dp))
+                        }
+                        IconButton(onClick = { vm.removeSubtask(row.key) }) {
+                            Icon(TasksIcons.Close, "Remove subtask", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                         }
                     }
-                    IconButton(onClick = { vm.removeSubtask(row.key) }) {
-                        Icon(TasksIcons.X, "Remove subtask", tint = p.textTertiary, modifier = Modifier.size(16.dp))
-                    }
-                }
-                if (tagging == row.key) {
-                    Box(Modifier.padding(start = 12.dp, top = 10.dp, bottom = 6.dp)) {
-                        TagSelector(tagTypes, row.tagIds, onToggle = { id ->
-                            vm.editSubtask(row.key) { it.copy(tagIds = if (id in it.tagIds) it.tagIds - id else it.tagIds + id) }
-                        })
+                    if (tagging == row.key) {
+                        Box(Modifier.padding(start = 18.dp, end = 12.dp, bottom = 14.dp)) {
+                            TagSelector(tagTypes, row.tagIds, onToggle = { id ->
+                                vm.editSubtask(row.key) { it.copy(tagIds = if (id in it.tagIds) it.tagIds - id else it.tagIds + id) }
+                            })
+                        }
                     }
                 }
             }
         }
-        Row(
-            Modifier.clip(RoundedCornerShape(6.dp)).clickable { vm.addSubtask() }.padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(TasksIcons.Plus, null, tint = p.textSecondary, modifier = Modifier.size(15.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("Add subtask", color = p.textSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        ConnectedItem(rows.size, count, onClick = { vm.addSubtask() }) {
+            Row(Modifier.height(52.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(TasksIcons.Add, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(12.dp))
+                Text("Add subtask", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }
@@ -399,7 +599,8 @@ fun NameDialog(title: String, label: String, initial: String = "", onDismiss: ()
                 onValueChange = { value = it },
                 label = { Text(label) },
                 singleLine = true,
-                colors = tasksFieldColors(),
+                shape = RoundedCornerShape(16.dp),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             )
         },
         confirmButton = {

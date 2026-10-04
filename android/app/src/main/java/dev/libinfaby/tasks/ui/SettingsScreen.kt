@@ -9,58 +9,60 @@ import android.os.PowerManager
 import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.compose.material3.ButtonDefaults
 import dev.libinfaby.tasks.data.settings.Settings
 import dev.libinfaby.tasks.data.settings.ThemeMode
 import dev.libinfaby.tasks.reminders.Notifications
 import dev.libinfaby.tasks.sync.SyncWorker
-import dev.libinfaby.tasks.ui.components.ListCard
-import dev.libinfaby.tasks.ui.components.RowDivider
-import dev.libinfaby.tasks.ui.components.SectionHeader
+import dev.libinfaby.tasks.ui.components.BackTopBar
+import dev.libinfaby.tasks.ui.components.ConnectedColumn
+import dev.libinfaby.tasks.ui.components.ConnectedItem
+import dev.libinfaby.tasks.ui.components.ConnectedToggleGroup
+import dev.libinfaby.tasks.ui.components.FieldLabel
+import dev.libinfaby.tasks.ui.components.ListRow
 import dev.libinfaby.tasks.ui.theme.TasksIcons
-import dev.libinfaby.tasks.ui.theme.palette
 import java.text.DateFormat
 import java.util.Date
 
 @SuppressLint("BatteryLife")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(settings: Settings, onTheme: (ThemeMode) -> Unit, onSignOut: () -> Unit, onOpenDrawer: () -> Unit) {
-    val p = palette
+fun SettingsScreen(
+    settings: Settings,
+    onTheme: (ThemeMode) -> Unit,
+    onWallpaperColors: (Boolean) -> Unit,
+    onSignOut: () -> Unit,
+    onBack: () -> Unit,
+) {
     val context = LocalContext.current
     // Re-read permission state when returning from system settings
     var tick by remember { mutableIntStateOf(0) }
@@ -73,94 +75,102 @@ fun SettingsScreen(settings: Settings, onTheme: (ThemeMode) -> Unit, onSignOut: 
         context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
     }
 
-    Scaffold(
-        containerColor = p.bg,
-        topBar = {
-            Column {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = p.bg),
-                    navigationIcon = { IconButton(onClick = onOpenDrawer) { Icon(TasksIcons.Menu, "Menu", tint = p.textSecondary) } },
-                    title = { Text("Settings", style = MaterialTheme.typography.titleMedium) },
-                )
-                RowDivider()
-            }
-        },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SectionHeader("Appearance")
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                ThemeMode.entries.forEachIndexed { i, mode ->
-                    SegmentedButton(
-                        selected = settings.theme == mode,
-                        onClick = { onTheme(mode) },
-                        shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
-                        icon = {},
-                        colors = SegmentedButtonDefaults.colors(activeContainerColor = p.accentSoft, activeContentColor = p.accentText, inactiveContainerColor = p.card),
-                    ) { Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }, fontSize = 13.sp) }
+    Scaffold(containerColor = MaterialTheme.colorScheme.surface, topBar = { BackTopBar("Settings", onBack) }) { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
+        ) {
+            FieldLabel("Appearance", Modifier.padding(start = 4.dp))
+            ConnectedToggleGroup(
+                options = ThemeMode.entries,
+                selected = settings.theme,
+                onSelect = onTheme,
+                label = { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                icon = { mode, _ ->
+                    when (mode) {
+                        ThemeMode.SYSTEM -> TasksIcons.AutoMode
+                        ThemeMode.LIGHT -> TasksIcons.LightMode
+                        ThemeMode.DARK -> TasksIcons.DarkMode
+                    }
+                },
+            )
+            Spacer(Modifier.height(8.dp))
+            ConnectedItem(0, 1, onClick = { onWallpaperColors(!settings.wallpaperColors) }) {
+                ListRow(
+                    "Wallpaper colours",
+                    supporting = if (settings.wallpaperColors) "Colours follow your wallpaper" else "Using the Grape palette",
+                    icon = TasksIcons.Palette,
+                    iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
+                    iconContent = MaterialTheme.colorScheme.onTertiaryContainer,
+                ) {
+                    Switch(settings.wallpaperColors, onWallpaperColors, thumbContent = if (settings.wallpaperColors) ({ Icon(TasksIcons.Check, null, modifier = Modifier.size(16.dp)) }) else null)
                 }
             }
 
-            Spacer(Modifier.width(8.dp))
-            SectionHeader("Reminders")
-            ListCard {
-                StatusRow("Notifications", if (canNotify) "Allowed" else "Off — reminders can't be shown", canNotify, "Allow") {
+            Spacer(Modifier.height(28.dp))
+            FieldLabel("Reminders", Modifier.padding(start = 4.dp))
+            ConnectedColumn {
+                StatusItem(0, TasksIcons.Notifications, "Notifications", if (canNotify) "Allowed" else "Off, so reminders can't be shown", canNotify, "Allow") {
                     notifyLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
-                RowDivider()
-                StatusRow("Exact timing", if (canExact) "Reminders fire on the minute" else "Reminders may be a few minutes late", canExact, "Open") {
+                StatusItem(1, TasksIcons.Timer, "Exact timing", if (canExact) "Reminders fire on the minute" else "Reminders may be a few minutes late", canExact, "Open") {
                     context.startActivity(Intent(AndroidSettings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}")))
                 }
-                RowDivider()
-                StatusRow("Battery", if (unrestricted) "Unrestricted — background sync is reliable" else "Optimised — sync may be delayed", unrestricted, "Allow") {
+                StatusItem(2, TasksIcons.Battery, "Battery", if (unrestricted) "Unrestricted, so background sync is reliable" else "Optimised, so sync may be delayed", unrestricted, "Allow") {
                     context.startActivity(Intent(AndroidSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}")))
                 }
             }
             Text(
                 "Tip: if this phone's browser also gets Tasks notifications, turn them off there to avoid duplicates.",
                 style = MaterialTheme.typography.bodySmall,
-                color = p.textTertiary,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
             )
 
-            SectionHeader("Sync")
-            ListCard {
-                Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Last synced", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            if (settings.lastSyncAt == 0L) "Never" else DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(settings.lastSyncAt)),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = p.textTertiary,
-                        )
-                    }
-                    TextButton(onClick = { SyncWorker.syncNow(context) }) { Text("Sync now") }
+            Spacer(Modifier.height(18.dp))
+            FieldLabel("Sync", Modifier.padding(start = 4.dp))
+            ConnectedColumn {
+                ConnectedItem(0, 2) {
+                    ListRow(
+                        "Last synced",
+                        supporting = if (settings.lastSyncAt == 0L) "Never" else DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(settings.lastSyncAt)),
+                        icon = TasksIcons.Sync,
+                        iconShape = CircleShape,
+                    ) { TextButton(onClick = { SyncWorker.syncNow(context) }) { Text("Sync now") } }
                 }
-                RowDivider()
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Text("Server", style = MaterialTheme.typography.bodyMedium)
-                    Text(settings.apiUrl, style = MaterialTheme.typography.bodySmall, color = p.textTertiary)
-                }
+                ConnectedItem(1, 2) { ListRow("Server", supporting = settings.apiUrl, icon = TasksIcons.Server, iconShape = CircleShape) }
             }
 
-            Spacer(Modifier.width(8.dp))
-            TextButton(onClick = onSignOut, shape = RoundedCornerShape(6.dp)) {
-                Icon(TasksIcons.LogOut, null, tint = p.danger)
+            Spacer(Modifier.height(32.dp))
+            FilledTonalButton(
+                onClick = onSignOut,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+            ) {
+                Icon(TasksIcons.Logout, null)
                 Spacer(Modifier.width(8.dp))
-                Text("Sign out", color = p.danger)
+                Text("Sign out", style = MaterialTheme.typography.titleMedium)
             }
         }
     }
 }
 
+/** A permission/health row: a check when fine, an action button when not. */
 @Composable
-private fun StatusRow(title: String, detail: String, ok: Boolean, action: String, onAction: () -> Unit) {
-    val p = palette
-    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium)
-            Text(detail, style = MaterialTheme.typography.bodySmall, color = if (ok) p.textTertiary else p.high)
+private fun StatusItem(index: Int, icon: ImageVector, title: String, detail: String, ok: Boolean, action: String, onAction: () -> Unit) {
+    ConnectedItem(index, 3) {
+        ListRow(
+            title,
+            supporting = detail,
+            supportingColor = if (ok) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+            icon = icon,
+            iconContainer = if (ok) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer,
+            iconContent = if (ok) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onErrorContainer,
+        ) {
+            if (ok) Icon(TasksIcons.Check, "OK", tint = MaterialTheme.colorScheme.primary)
+            else FilledTonalButton(onClick = onAction) { Text(action) }
         }
-        if (!ok) TextButton(onClick = onAction) { Text(action) }
-        else Icon(TasksIcons.Check, "OK", tint = p.success, modifier = Modifier.padding(end = 12.dp))
     }
 }
