@@ -1,0 +1,8 @@
+<!-- Lucide "list-checks" (ISC) centred in the 66dp safe zone: 24-unit glyph scaled 1.75x around (54,54) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <group android:scaleX="1.75" android:scaleY="1.75" android:translateX="33" android:translateY="33">
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round"
+            android:pathData="M3,17l2,2l4,-4M3,7l2,2l4,-4M13,6h8M13,12h8M13,18h8" />
+    </group>
+</vector>

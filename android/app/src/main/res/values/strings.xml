@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Tasks</string>
+    <string name="widget_name">Today</string>
+    <string name="widget_description">Today\'s and overdue tasks, tap to complete</string>
+</resources>
