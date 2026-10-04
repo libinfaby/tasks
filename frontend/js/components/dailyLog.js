@@ -4,6 +4,7 @@
 
 import { api } from '../api.js';
 import { createElement, showToast } from '../utils.js';
+import { icon } from '../icons.js';
 
 // Local (not UTC) YYYY-MM-DD, so "today" matches the user's calendar day
 export function toDateStr(d) {
@@ -82,7 +83,7 @@ export class DailyLog {
     const copyBtn = createElement('button', {
       className: 'btn btn-secondary',
       onClick: () => copyLines(entries),
-    }, 'Copy tasks');
+    }, icon('copy'), 'Copy');
 
     const draw = () => {
       countEl.textContent = `${entries.length} task${entries.length === 1 ? '' : 's'}`;
@@ -127,15 +128,16 @@ export class DailyLog {
     container.appendChild(createElement('div', { className: 'daily-wrap' },
       createElement('div', { className: 'daily-toolbar' },
         createElement('div', { className: 'daily-date-group' },
-          createElement('button', { className: 'btn btn-secondary btn-icon', title: 'Previous day', onClick: () => shift(-1) }, '‹'),
+          createElement('button', { className: 'btn btn-secondary btn-icon', title: 'Previous day', 'aria-label': 'Previous day', onClick: () => shift(-1) }, icon('chevronLeft')),
           dateInput,
-          createElement('button', { className: 'btn btn-secondary btn-icon', title: 'Next day', onClick: () => shift(1) }, '›'),
+          createElement('button', { className: 'btn btn-secondary btn-icon', title: 'Next day', 'aria-label': 'Next day', onClick: () => shift(1) }, icon('chevronRight')),
+          createElement('button', { className: 'btn btn-ghost', onClick: () => { this.entryDate = toDateStr(new Date()); dateInput.value = this.entryDate; load(); } }, 'Today'),
         ),
         createElement('div', { className: 'daily-toolbar-right' }, countEl, copyBtn)
       ),
       createElement('div', { className: 'daily-add' },
         input,
-        createElement('button', { className: 'btn btn-primary', onClick: add }, 'Add')
+        createElement('button', { className: 'btn btn-primary', onClick: add }, icon('plus'), 'Add')
       ),
       listEl
     ));
@@ -156,8 +158,8 @@ export class DailyLog {
       createElement('span', { className: 'daily-bullet' }),
       textEl,
       createElement('div', { className: 'daily-actions' },
-        createElement('button', { className: 'task-action-btn', onClick: () => startEdit() }, 'Edit'),
-        createElement('button', { className: 'task-action-btn delete', onClick: () => remove() }, 'Delete'),
+        createElement('button', { className: 'task-action-btn', title: 'Edit', 'aria-label': 'Edit entry', onClick: () => startEdit() }, icon('pencil', { size: 15 })),
+        createElement('button', { className: 'task-action-btn delete', title: 'Delete', 'aria-label': 'Delete entry', onClick: () => remove() }, icon('trash', { size: 15 })),
       )
     );
 
@@ -252,7 +254,7 @@ export class DailyLog {
           createElement('div', { className: 'daily-day-header' },
             createElement('h3', {}, prettyDate(date)),
             createElement('span', { className: 'daily-count' }, `${entries.length} task${entries.length === 1 ? '' : 's'}`),
-            createElement('button', { className: 'btn btn-secondary daily-copy', onClick: () => copyLines(entries) }, 'Copy tasks')
+            createElement('button', { className: 'btn btn-ghost btn-sm', onClick: () => copyLines(entries) }, icon('copy'), 'Copy')
           ),
           createElement('div', { className: 'daily-list' },
             ...entries.map(e => this._entryRow(e, load))
@@ -277,8 +279,8 @@ export class DailyLog {
           createElement('label', { className: 'daily-label' }, 'To'), toInput,
         ),
         createElement('div', { className: 'daily-toolbar-right' },
-          createElement('button', { className: 'btn btn-secondary', onClick: () => setRange(7) }, 'Last 7 days'),
-          createElement('button', { className: 'btn btn-secondary', onClick: () => setRange(30) }, 'Last 30 days'),
+          createElement('button', { className: 'btn btn-secondary btn-sm', onClick: () => setRange(7) }, 'Last 7 days'),
+          createElement('button', { className: 'btn btn-secondary btn-sm', onClick: () => setRange(30) }, 'Last 30 days'),
         )
       ),
       listEl

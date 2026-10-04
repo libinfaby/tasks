@@ -11,6 +11,7 @@ import { TaskForm } from './components/taskForm.js';
 import { TagManager } from './components/tagManager.js';
 import { GroupManager } from './components/groupManager.js';
 import { DailyLog } from './components/dailyLog.js';
+import { icon } from './icons.js';
 
 class App {
   constructor() {
@@ -25,6 +26,11 @@ class App {
 
     // Listen for auth logout
     window.addEventListener('auth:logout', () => this.showLogin());
+    window.addEventListener('theme:change', () => {
+      if (!this.taskList) return;
+      if (['tags', 'groups-manage'].includes(this.currentView)) this.navigate(this.currentView);
+      else this.refreshContent();
+    });
 
     this.init();
   }
@@ -83,18 +89,22 @@ class App {
 
     // Header
     const header = createElement('div', { className: 'content-header', id: 'content-header' },
-      createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '12px' } },
+      createElement('div', { className: 'header-title' },
         createElement('button', {
-          className: 'mobile-menu-btn',
+          className: 'icon-btn mobile-menu-btn',
+          title: 'Menu',
+          'aria-label': 'Open menu',
           onClick: () => this.sidebar.openMobile(),
-        }, '☰ Menu'),
-        createElement('h2', { id: 'view-title' }, 'All Tasks')
+        }, icon('menu', { size: 18 })),
+        createElement('h2', { id: 'view-title' }, 'All Tasks'),
+        createElement('span', { className: 'header-count', id: 'view-count' })
       ),
       createElement('div', { className: 'header-actions' },
+        createElement('div', { className: 'search-group' },
         createElement('select', {
           id: 'search-type-select',
-          className: 'form-select tag-filter-select',
-          style: { width: '130px' },
+          className: 'search-type',
+          'aria-label': 'Search by',
           onChange: (e) => {
             const input = document.getElementById('search-input');
             const wantsDate = e.target.value === 'date';
@@ -102,7 +112,7 @@ class App {
             // Date search uses a native date picker; other searches use free text
             if ((input.type === 'date') !== wantsDate) {
               input.type = wantsDate ? 'date' : 'text';
-              input.placeholder = wantsDate ? '' : 'Search...';
+              input.placeholder = wantsDate ? '' : 'Search…';
               input.value = '';
             }
             if (hadValue || input.value) {
@@ -116,11 +126,12 @@ class App {
           ...searchTypeOptions
         ),
         createElement('div', { className: 'search-bar' },
-          createElement('span', { className: 'search-icon' }, ''),
+          icon('search', { size: 15 }),
           createElement('input', {
             type: 'text',
             id: 'search-input',
-            placeholder: 'Search...',
+            placeholder: 'Search…',
+            'aria-label': 'Search tasks',
             onInput: debounce((e) => {
               const selectVal = document.getElementById('search-type-select').value;
               let searchType = 'task';
@@ -135,6 +146,12 @@ class App {
             }, 300),
           })
         )
+        ),
+        createElement('button', {
+          className: 'btn btn-primary new-task-btn',
+          id: 'new-task-btn',
+          onClick: () => this.taskList.openNewTaskForm(),
+        }, icon('plus'), 'New task')
       )
     );
     main.appendChild(header);
@@ -147,9 +164,10 @@ class App {
     const fab = createElement('button', {
       className: 'fab',
       id: 'fab-new-task',
-      title: 'New Task',
+      title: 'New task',
+      'aria-label': 'New task',
       onClick: () => this.taskList.openNewTaskForm(),
-    }, '+');
+    }, icon('plus', { size: 22 }));
     main.appendChild(fab);
 
     // Sidebar backdrop (mobile)
@@ -226,30 +244,22 @@ class App {
     this.sidebar?.closeMobile();
 
     const title = document.getElementById('view-title');
-    const fab = document.getElementById('fab-new-task');
-
-    // Task search only applies to the task views
-    const headerActions = document.querySelector('.header-actions');
-    if (headerActions) headerActions.style.display = view.startsWith('daily-') ? 'none' : '';
+    const isTaskView = !['daily-entry', 'daily-report', 'tags', 'groups-manage'].includes(view);
+    this._setTaskChrome(isTaskView);
 
     if (view === 'daily-entry') {
-      if (title) title.textContent = 'Daily Tasks — Entry';
-      if (fab) fab.style.display = 'none';
+      if (title) title.textContent = 'Daily Tasks';
       await this.dailyLog.renderEntry(this.contentArea);
     } else if (view === 'daily-report') {
-      if (title) title.textContent = 'Daily Tasks — Report';
-      if (fab) fab.style.display = 'none';
+      if (title) title.textContent = 'Daily Report';
       await this.dailyLog.renderReport(this.contentArea);
     } else if (view === 'tags') {
       if (title) title.textContent = 'Tags';
-      if (fab) fab.style.display = 'none';
       await this.tagManager.render(this.contentArea);
     } else if (view === 'groups-manage') {
       if (title) title.textContent = 'Manage Groups';
-      if (fab) fab.style.display = 'none';
       await this.groupManager.render(this.contentArea);
     } else {
-      if (fab) fab.style.display = 'flex';
       this.taskList.setView(view);
       if (title) title.textContent = this.taskList.getViewTitle();
       await this.taskList.loadTasks();
@@ -262,10 +272,7 @@ class App {
     this.sidebar?.closeMobile();
 
     const title = document.getElementById('view-title');
-    const fab = document.getElementById('fab-new-task');
-    if (fab) fab.style.display = 'flex';
-    const headerActions = document.querySelector('.header-actions');
-    if (headerActions) headerActions.style.display = '';
+    this._setTaskChrome(true);
 
     this.taskList.setGroupFilter(group);
     if (title) title.textContent = group.name;
@@ -273,9 +280,21 @@ class App {
     this.taskList.render(this.contentArea);
   }
 
+  // Search, task count and new-task buttons only apply to the task views
+  _setTaskChrome(visible) {
+    document.querySelector('.header-actions')?.classList.toggle('hidden', !visible);
+    document.getElementById('fab-new-task')?.classList.toggle('hidden', !visible);
+    if (!visible) {
+      const count = document.getElementById('view-count');
+      if (count) count.textContent = '';
+    }
+  }
+
   async refreshContent() {
-    if (['tags', 'groups-manage', 'daily-entry', 'daily-report'].includes(this.currentView)) return;
+    const view = this.currentView;
+    if (['tags', 'groups-manage', 'daily-entry', 'daily-report'].includes(view)) return;
     await this.taskList.loadTasks();
+    if (this.currentView !== view) return; // navigated away while loading
     const body = document.getElementById('task-list-body');
     if (body) this.taskList._renderTaskList(body);
   }

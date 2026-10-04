@@ -3,6 +3,7 @@
 // ============================================================
 
 import { api } from '../api.js';
+import { icon } from '../icons.js';
 import { createElement, showToast, getTagBg, getChipStyle } from '../utils.js';
 
 export class TagManager {
@@ -23,20 +24,20 @@ export class TagManager {
     await this.loadData();
     container.innerHTML = '';
     const body = createElement('div', { className: 'content-body' });
-    body.appendChild(createElement('div', { style: { marginBottom: 'var(--space-lg)', display: 'flex', justifyContent: 'flex-end' } },
-      createElement('button', { className: 'btn btn-primary btn-sm', onClick: () => this._showAddTagType(container) }, '+ New Tag')
+    body.appendChild(createElement('div', { className: 'page-actions' },
+      createElement('button', { className: 'btn btn-primary', onClick: () => this._showAddTagType(container) }, icon('plus'), 'New tag type')
     ));
     const manager = createElement('div', { className: 'tag-manager' });
     if (this.tagTypes.length === 0) {
       manager.appendChild(createElement('div', { className: 'empty-state' },
-        createElement('div', { className: 'empty-icon' }, ''),
+        createElement('div', { className: 'empty-icon' }, icon('tag', { size: 20 })),
         createElement('h3', {}, 'No tag types yet'),
         createElement('p', {}, 'Create tag types like "Project", "Client" to organize tasks.')
       ));
     } else {
       this.tagTypes.forEach((type, i) => {
         const card = this._renderCard(type, container);
-        card.style.animationDelay = `${i * 80}ms`;
+        card.style.animationDelay = `${i * 40}ms`;
         manager.appendChild(card);
       });
     }
@@ -48,18 +49,19 @@ export class TagManager {
     return createElement('div', { className: 'tag-type-card' },
       createElement('div', { className: 'tag-type-header' },
         createElement('div', { className: 'tag-type-header-left' },
-          createElement('span', { className: 'type-icon' }, type.icon || ''),
+          createElement('span', { className: 'type-color', style: { background: type.color } }),
+          type.icon ? createElement('span', { className: 'type-icon' }, type.icon) : null,
           createElement('span', { className: 'type-name' }, type.name),
-          createElement('span', { className: 'type-color', style: { background: type.color, border: 'none' } })
+          createElement('span', { className: 'type-count' }, String((type.tags || []).length))
         ),
-        createElement('div', { style: { display: 'flex', gap: '4px' } },
-          createElement('button', { className: 'task-action-btn', title: 'Edit', onClick: () => this._editType(type, root) }, 'Edit'),
-          createElement('button', { className: 'task-action-btn delete', title: 'Delete', onClick: () => this._deleteType(type, root) }, 'Delete')
+        createElement('div', { className: 'row-actions' },
+          createElement('button', { className: 'task-action-btn', title: 'Edit', 'aria-label': 'Edit', onClick: () => this._editType(type, root) }, icon('pencil', { size: 15 })),
+          createElement('button', { className: 'task-action-btn delete', title: 'Delete', 'aria-label': 'Delete', onClick: () => this._deleteType(type, root) }, icon('trash', { size: 15 }))
         )
       ),
       createElement('div', { className: 'tag-type-body' },
         ...(type.tags || []).map(tag => this._chip(tag, type, root)),
-        createElement('button', { className: 'add-tag-inline', onClick: () => this._showAddTag(type, root) }, '+ Add')
+        createElement('button', { className: 'add-tag-inline', onClick: () => this._showAddTag(type, root) }, icon('plus'), 'Add tag')
       )
     );
   }
@@ -78,18 +80,18 @@ export class TagManager {
       onClick: () => this._editTag(tag, type, root)
     },
       tag.name,
-      createElement('button', { className: 'tag-remove', style: { color: style.color }, onClick: async (e) => {
+      createElement('button', { className: 'tag-remove', title: 'Delete tag', 'aria-label': `Delete ${tag.name}`, onClick: async (e) => {
         e.stopPropagation();
         if (confirm(`Delete tag "${tag.name}"?`)) {
           try { await api.deleteTag(tag.id); showToast('Tag deleted', 'success'); this.render(root); }
           catch (err) { showToast(err.message, 'error'); }
         }
-      }}, ' X')
+      }}, icon('x'))
     );
   }
 
   _editTag(tag, type, root) {
-    const preview = createElement('span', { className: 'tag-chip' }, tag.name);
+    const preview = createElement('span', { className: 'tag-chip chip-preview' }, tag.name);
 
     const updatePreview = () => {
       const name = nameInput.value || tag.name;
@@ -100,22 +102,20 @@ export class TagManager {
       });
       preview.textContent = name;
       Object.assign(preview.style, style);
-      preview.style.marginBottom = '12px';
-      preview.style.display = 'inline-block';
     };
 
     const nameInput = createElement('input', { type: 'text', className: 'form-input', value: tag.name, onInput: updatePreview });
-    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: tag.color || type.color, style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
-    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: tag.fg_color || type.fg_color || '#ffffff', style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: tag.color || type.color, onInput: updatePreview });
+    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: tag.fg_color || type.fg_color || '#ffffff', onInput: updatePreview });
     const hasBgCheck = createElement('input', { type: 'checkbox', checked: tag.has_bg !== undefined ? !!tag.has_bg : (type.has_bg !== undefined ? !!type.has_bg : true), onChange: updatePreview });
 
     const body = [
       createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
       createElement('div', { className: 'form-group' }, createElement('label', {}, 'Tag Name'), nameInput),
       createElement('div', { className: 'form-row' },
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Background'), colorInput),
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Foreground'), fgColorInput),
-        createElement('div', { className: 'form-group' }, createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' } }, hasBgCheck, ' Show background')))
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Colour'), colorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Text colour'), fgColorInput),
+        createElement('div', { className: 'form-group' }, createElement('span', { className: 'form-label' }, 'Background'), createElement('label', { className: 'form-check' }, hasBgCheck, 'Filled')))
     ];
     this._modal('Edit Tag', body, async () => {
       const name = nameInput.value.trim();
@@ -140,10 +140,10 @@ export class TagManager {
 
   _modal(title, bodyContent, onSave, onClose) {
     const overlay = createElement('div', { className: 'modal-overlay', onClick: (e) => { if (e.target === overlay) overlay.remove(); } },
-      createElement('div', { className: 'modal', style: { maxWidth: '420px' } },
+      createElement('div', { className: 'modal modal-sm' },
         createElement('div', { className: 'modal-header' },
           createElement('h3', {}, title),
-          createElement('button', { className: 'modal-close', onClick: () => overlay.remove() }, 'Close')
+          createElement('button', { className: 'modal-close', title: 'Close', 'aria-label': 'Close', onClick: () => overlay.remove() }, icon('x', { size: 18 }))
         ),
         createElement('div', { className: 'modal-body' }, ...bodyContent),
         createElement('div', { className: 'modal-footer' },
@@ -157,7 +157,7 @@ export class TagManager {
   }
 
   _showAddTagType(root) {
-    const preview = createElement('span', { className: 'tag-chip', style: { background: '#6366f1', color: '#ffffff', marginBottom: '12px', display: 'inline-block' } }, 'Preview Tag');
+    const preview = createElement('span', { className: 'tag-chip chip-preview' }, 'Preview Tag');
     
     const updatePreview = () => {
       const name = nameInput.value || 'Preview Tag';
@@ -171,8 +171,8 @@ export class TagManager {
     };
 
     const nameInput = createElement('input', { type: 'text', className: 'form-input', placeholder: 'e.g., Project, Client...', onInput: updatePreview });
-    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: '#6366f1', style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
-    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: '#ffffff', style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: '#6366f1', onInput: updatePreview });
+    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: '#ffffff', onInput: updatePreview });
     const hasBgCheck = createElement('input', { type: 'checkbox', checked: true, onChange: updatePreview });
     const iconInput = createElement('input', { type: 'text', className: 'form-input', placeholder: 'Tag', maxlength: '4' });
 
@@ -180,9 +180,9 @@ export class TagManager {
       createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
       createElement('div', { className: 'form-group' }, createElement('label', {}, 'Name'), nameInput),
       createElement('div', { className: 'form-row' },
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Background'), colorInput),
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Foreground'), fgColorInput),
-        createElement('div', { className: 'form-group' }, createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' } }, hasBgCheck, ' Show background'))),
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Colour'), colorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Text colour'), fgColorInput),
+        createElement('div', { className: 'form-group' }, createElement('span', { className: 'form-label' }, 'Background'), createElement('label', { className: 'form-check' }, hasBgCheck, 'Filled'))),
       createElement('div', { className: 'form-group' }, createElement('label', {}, 'Icon'), iconInput)
     ];
     this._modal('New Tag Type', body, async () => {
@@ -208,7 +208,7 @@ export class TagManager {
   }
 
   _showAddTag(type, root) {
-    const preview = createElement('span', { className: 'tag-chip' }, 'Preview Tag');
+    const preview = createElement('span', { className: 'tag-chip chip-preview' }, 'Preview Tag');
     
     const updatePreview = () => {
       const name = nameInput.value || 'Preview Tag';
@@ -219,24 +219,22 @@ export class TagManager {
       });
       preview.textContent = name;
       Object.assign(preview.style, style);
-      preview.style.marginBottom = '12px';
-      preview.style.display = 'inline-block';
     };
 
     const nameInput = createElement('input', { type: 'text', className: 'form-input', placeholder: 'Tag name...', onInput: updatePreview });
     // New Client tags start white on black; the colors stay editable
     const isClient = (type.name || '').toLowerCase() === 'client';
-    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: isClient ? '#ffffff' : type.color, style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
-    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: isClient ? '#000000' : (type.fg_color || '#ffffff'), style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: isClient ? '#ffffff' : type.color, onInput: updatePreview });
+    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: isClient ? '#000000' : (type.fg_color || '#ffffff'), onInput: updatePreview });
     const hasBgCheck = createElement('input', { type: 'checkbox', checked: isClient || (type.has_bg !== undefined ? !!type.has_bg : true), onChange: updatePreview });
 
     const body = [
       createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
       createElement('div', { className: 'form-group' }, createElement('label', {}, 'Tag Name'), nameInput),
       createElement('div', { className: 'form-row' },
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Background'), colorInput),
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Foreground'), fgColorInput),
-        createElement('div', { className: 'form-group' }, createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' } }, hasBgCheck, ' Show background')))
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Colour'), colorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Text colour'), fgColorInput),
+        createElement('div', { className: 'form-group' }, createElement('span', { className: 'form-label' }, 'Background'), createElement('label', { className: 'form-check' }, hasBgCheck, 'Filled')))
     ];
     this._modal(`Add ${type.name} Tag`, body, async () => {
       const name = nameInput.value.trim();
@@ -261,7 +259,7 @@ export class TagManager {
   }
 
   _editType(type, root) {
-    const preview = createElement('span', { className: 'tag-chip' }, type.name);
+    const preview = createElement('span', { className: 'tag-chip chip-preview' }, type.name);
     
     const updatePreview = () => {
       const name = nameInput.value || type.name;
@@ -272,13 +270,11 @@ export class TagManager {
       });
       preview.textContent = name;
       Object.assign(preview.style, style);
-      preview.style.marginBottom = '12px';
-      preview.style.display = 'inline-block';
     };
 
     const nameInput = createElement('input', { type: 'text', className: 'form-input', value: type.name, onInput: updatePreview });
-    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: type.color, style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
-    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: (type.fg_color || '#ffffff'), style: { height: '40px', padding: '4px', cursor: 'pointer' }, onInput: updatePreview });
+    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: type.color, onInput: updatePreview });
+    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: (type.fg_color || '#ffffff'), onInput: updatePreview });
     const hasBgCheck = createElement('input', { type: 'checkbox', checked: type.has_bg !== undefined ? !!type.has_bg : true, onChange: updatePreview });
     const iconInput = createElement('input', { type: 'text', className: 'form-input', value: type.icon || '', maxlength: '4' });
     const applyAllCheck = createElement('input', { type: 'checkbox' });
@@ -288,11 +284,11 @@ export class TagManager {
       createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
       createElement('div', { className: 'form-group' }, createElement('label', {}, 'Name'), nameInput),
       createElement('div', { className: 'form-row' },
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Background'), colorInput),
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Foreground'), fgColorInput),
-        createElement('div', { className: 'form-group' }, createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' } }, hasBgCheck, ' Show background'))),
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Colour'), colorInput),
+        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Text colour'), fgColorInput),
+        createElement('div', { className: 'form-group' }, createElement('span', { className: 'form-label' }, 'Background'), createElement('label', { className: 'form-check' }, hasBgCheck, 'Filled'))),
       createElement('div', { className: 'form-group' }, createElement('label', {}, 'Icon'), iconInput),
-      ...(tagCount > 0 ? [createElement('div', { className: 'form-group' }, createElement('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' } }, applyAllCheck, ` Apply these colors to all ${tagCount} tag${tagCount === 1 ? '' : 's'} in this category`))] : [])
+      ...(tagCount > 0 ? [createElement('div', { className: 'form-group' }, createElement('label', { className: 'form-check' }, applyAllCheck, `Apply these colours to all ${tagCount} tag${tagCount === 1 ? '' : 's'} in this category`))] : [])
     ];
     this._modal('Edit Tag Type', body, async () => {
       const name = nameInput.value.trim();

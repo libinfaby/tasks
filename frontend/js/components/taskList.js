@@ -4,10 +4,11 @@
 import { api } from '../api.js';
 import {
   createElement, showToast, formatDate, isOverdue, isToday,
-  getChipStyle, getPriorityLabel, getPriorityClass, formatReminder,
+  getChipStyle, getPriorityLabel, getPriorityClass, formatReminder, REPEAT_LABELS,
 } from '../utils.js';
 import { TaskForm } from './taskForm.js';
 import { toDateStr } from './dailyLog.js';
+import { icon } from '../icons.js';
 
 const TAG_TYPE_ORDER = ['client', 'project', 'via'];
 // Tags named like this render as a colored strip on the card's left edge instead of a chip
@@ -38,18 +39,20 @@ export class TaskList {
       this._filterChip('Completed', this.filters.completed === 'true', () => { this.filters.completed = this.filters.completed === 'true' ? 'false' : 'true'; this.refresh(container); }),
       this._filterChip('Urgent', this.filters.priority === '2', () => { this.filters.priority = this.filters.priority === '2' ? '' : '2'; this.refresh(container); }),
       this._filterChip('High', this.filters.priority === '1', () => { this.filters.priority = this.filters.priority === '1' ? '' : '1'; this.refresh(container); }),
-      ...(this.filters.tag_id ? [this._filterChip('Tag Filter Active', true, () => { this.setTagFilter(''); this.refresh(container); })] : [])
+      ...(this.filters.tag_id ? [this._filterChip('Tag filter', true, () => { this.setTagFilter(''); this.refresh(container); }, icon('x', { size: 13 }))] : [])
     );
     container.appendChild(fb); const body = createElement('div', { className: 'content-body', id: 'task-list-body' }); container.appendChild(body); this._renderTaskList(body);
   }
   _renderTaskList(body) {
-    body.innerHTML = ''; if (this.tasks.length === 0) { body.appendChild(this._renderEmptyState()); return; }
+    body.innerHTML = '';
+    const count = document.getElementById('view-count'); if (count) count.textContent = String(this.tasks.length);
+    if (this.tasks.length === 0) { body.appendChild(this._renderEmptyState()); return; }
     if (this.view === 'all' && !this.groupFilter) {
       const g = this._groupTasksByGroup();
-      if (g.priority.length > 0) body.appendChild(this._renderSection('Priority', g.priority, { color: '#ef4444', has_bg: true }));
-      if (g.ungrouped.length > 0) body.appendChild(this._renderSection('Tasks', g.ungrouped, { color: '#6366f1', has_bg: true }));
+      if (g.priority.length > 0) body.appendChild(this._renderSection('Priority', g.priority, { color: 'var(--priority-urgent)' }));
+      if (g.ungrouped.length > 0) body.appendChild(this._renderSection('Tasks', g.ungrouped, { color: 'var(--accent)' }));
       Object.entries(g.groups).forEach(([id, { group, tasks }]) => { body.appendChild(this._renderSection(group.name, tasks, group)); });
-    } else { const list = createElement('div', { className: 'task-list' }); this.tasks.forEach((t, i) => { const c = this._renderTaskCard(t); c.style.animationDelay = `${i * 50}ms`; list.appendChild(c); }); body.appendChild(list); }
+    } else { body.appendChild(createElement('div', { className: 'task-list' }, ...this.tasks.map((t, i) => this._renderTaskCard(t, i)))); }
   }
   _groupTasksByGroup() {
     const res = { priority: [], ungrouped: [], groups: {} };
@@ -61,95 +64,67 @@ export class TaskList {
     return res;
   }
   _renderSection(title, tasks, group) {
-    const color = group?.color || '#6366f1';
+    const color = group?.color || 'var(--accent)';
     return createElement('div', { className: 'task-group-section' },
-      createElement('div', { className: 'task-group-header' }, createElement('div', { className: 'group-indicator', style: { background: color, border: 'none' } }), createElement('h3', { style: { color: group?.has_bg ? (group.fg_color || '#ffffff') : color } }, title), createElement('span', { className: 'group-count' }, `(${tasks.length})`)),
-      createElement('div', { className: 'task-list' }, ...tasks.map((t, i) => { const c = this._renderTaskCard(t); c.style.animationDelay = `${i * 50}ms`; return c; }))
+      createElement('div', { className: 'task-group-header' },
+        createElement('span', { className: 'group-indicator', style: { background: color } }),
+        createElement('h3', {}, title),
+        createElement('span', { className: 'group-count' }, String(tasks.length))
+      ),
+      createElement('div', { className: 'task-list' }, ...tasks.map((t, i) => this._renderTaskCard(t, i)))
     );
   }
 
-  _renderTaskCard(task) {
-    const totalSubtasks = (task.subtasks || []).length;
-    return createElement('div', {
+  _renderTaskCard(task, index = 0) {
+    const card = createElement('div', {
       className: `task-card priority-${task.priority}${task.is_completed ? ' completed' : ''}`,
-      onClick: (e) => { if (e.target.closest('.task-checkbox') || e.target.closest('.task-action-btn') || e.target.closest('.subtask-item .task-checkbox')) return; this._editTask(task); },
+      onClick: (e) => { if (e.target.closest('.task-checkbox') || e.target.closest('.task-action-btn') || e.target.closest('.selected-tag-clickable')) return; this._editTask(task); },
     },
-      createElement('div', { className: 'task-card-header', style: { padding: '12px 16px', display: 'flex', gap: '12px', alignItems: 'flex-start' } },
-        // Checkbox Container
-        createElement('div', { style: { width: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: '0', marginRight: '12px' } },
-          createElement('label', {
-            className: 'task-checkbox',
-            onClick: (e) => e.stopPropagation(),
-            style: { marginTop: '26px' }
-          },
-            createElement('input', { type: 'checkbox', ...(task.is_completed ? { checked: 'true' } : {}), onChange: () => this._toggleTask(task) }),
-            createElement('span', { className: 'checkmark' })
+      createElement('label', { className: 'task-checkbox', title: task.is_completed ? 'Mark as not done' : 'Mark as done', onClick: (e) => e.stopPropagation() },
+        createElement('input', { type: 'checkbox', 'aria-label': `Complete ${task.title}`, ...(task.is_completed ? { checked: 'true' } : {}), onChange: () => this._toggleTask(task) }),
+        createElement('span', { className: 'checkmark' })
+      ),
+      createElement('div', { className: 'task-card-body' },
+        createElement('div', { className: 'task-title-row' },
+          createElement('div', { className: 'task-title' }, task.title),
+          createElement('div', { className: 'task-card-actions' },
+            createElement('button', { className: 'task-action-btn', title: 'Edit', 'aria-label': 'Edit task', onClick: (e) => { e.stopPropagation(); this._editTask(task); } }, icon('pencil', { size: 15 })),
+            createElement('button', { className: 'task-action-btn delete', title: 'Delete', 'aria-label': 'Delete task', onClick: (e) => { e.stopPropagation(); this._deleteTask(task); } }, icon('trash', { size: 15 })),
           )
         ),
-
-        // Body
-        createElement('div', { className: 'task-card-body', style: { flex: 1, minWidth: 0 } },
-          // Top Row: Priority, Group and Actions
-          this._renderTopMetaRow(task),
-
-          // Title Row: Title + Date/Reminder
-          createElement('div', {
-            className: 'task-title-row',
-            style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '24px' }
-          },
-            createElement('div', { className: 'task-title', style: { flex: 1 } }, task.title),
-            this._renderDateMeta(task)
-          ),
-
-          task.details ? createElement('div', { className: 'task-details', style: { marginTop: '4px' } }, task.details) : null,
-          this._renderTags(task.tags),
-          totalSubtasks > 0 ? this._renderSubtasks(task) : null,
-        )
+        task.details ? createElement('div', { className: 'task-details' }, task.details) : null,
+        this._renderMeta(task),
+        (task.subtasks || []).length > 0 ? this._renderSubtasks(task) : null,
       )
     );
+    card.style.animationDelay = `${Math.min(index, 12) * 25}ms`;
+    return card;
   }
 
-  _renderTopMetaRow(task) {
-    const leftItems = [];
+  // Priority, group, date, reminder and tags on one wrapping line
+  _renderMeta(task) {
+    const items = [];
     if (task.priority > 0) {
-      const cls = getPriorityClass(task.priority);
-      leftItems.push(createElement('span', {
-        className: `priority-badge ${cls}`,
-        style: { border: 'none', fontWeight: '600' }
-      }, getPriorityLabel(task.priority)));
+      items.push(createElement('span', { className: `priority-badge ${getPriorityClass(task.priority)}` }, icon('flag'), getPriorityLabel(task.priority)));
     }
     if (task.group && this.view !== 'group') {
-      const style = getChipStyle(task.group);
-      leftItems.push(createElement('span', {
-        className: 'tag-chip group-tag',
-        style: { ...style, border: 'none' } // Solid from getChipStyle, border radius from CSS
-      }, task.group.name));
+      items.push(createElement('span', { className: 'tag-chip group-tag', style: getChipStyle(task.group) }, task.group.name));
     }
-
-    const actions = createElement('div', {
-      className: 'task-card-actions',
-      style: { marginLeft: 'auto', display: 'flex', alignItems: 'center', height: '22px' }
-    },
-      createElement('button', { className: 'task-action-btn', onClick: (e) => { e.stopPropagation(); this._editTask(task); } }, 'Edit'),
-      createElement('button', { className: 'task-action-btn delete', onClick: (e) => { e.stopPropagation(); this._deleteTask(task); } }, 'Delete'),
-    );
-
-    return createElement('div', {
-      style: { display: 'flex', alignItems: 'center', marginBottom: '4px', gap: '8px' }
-    }, ...leftItems, actions);
-  }
-
-  _renderDateMeta(task) {
-    const items = [];
     if (task.date) {
-      const dc = isOverdue(task.date) ? 'overdue' : (isToday(task.date) ? 'today' : '');
-      items.push(createElement('span', { className: `task-date ${dc}`, style: { color: 'inherit', fontSize: '0.75rem', whiteSpace: 'nowrap' } }, formatDate(task.date)));
+      const dc = isOverdue(task.date) && !task.is_completed ? ' overdue' : (isToday(task.date) ? ' today' : '');
+      items.push(createElement('span', { className: `meta-item${dc}`, title: 'Date' }, icon('calendar'), formatDate(task.date)));
     }
     if (task.reminder) {
-      items.push(createElement('span', { className: 'task-deadline', style: { color: 'inherit', fontSize: '0.75rem', whiteSpace: 'nowrap' } }, `• ${formatReminder(task.reminder)}`));
+      const repeat = REPEAT_LABELS[task.reminder_repeat];
+      items.push(createElement('span', { className: 'meta-item', title: repeat ? `Reminder, repeats ${repeat.toLowerCase()}` : 'Reminder' },
+        icon('bell'), formatReminder(task.reminder),
+        ...(repeat ? [icon('repeat'), repeat] : [])
+      ));
     }
+    const tags = this._renderTags(task.tags);
+    if (tags) items.push(tags);
     if (items.length === 0) return null;
-    return createElement('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', height: '24px', flexShrink: '0' } }, ...items);
+    return createElement('div', { className: 'task-meta' }, ...items);
   }
 
   _renderTags(tags) {
@@ -158,7 +133,7 @@ export class TaskList {
     const ORDER = ['client', 'kind', 'project', 'via'];
     const rank = (tag) => { const i = ORDER.indexOf(isKindTag(tag) ? 'kind' : (tag.type_name || '').toLowerCase()); return i === -1 ? ORDER.length : i; };
     const sorted = [...tags].sort((a, b) => rank(a) - rank(b));
-    return createElement('div', { className: 'tag-list', style: { marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' } },
+    return createElement('div', { className: 'tag-list' },
       ...sorted.map(tag => {
         const kind = isKindTag(tag);
         const style = kind
@@ -166,7 +141,8 @@ export class TaskList {
           : getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: tag.type_color, type_fg_color: tag.type_fg_color, type_has_bg: tag.type_has_bg });
         return createElement('span', {
           className: `tag-chip selected-tag-clickable${kind ? ' kind-chip' : ''}`,
-          style: { ...style, cursor: 'pointer', border: 'none', ...((tag.type_name || '').toLowerCase() === 'client' ? { fontSize: '0.65rem', fontWeight: '600' } : { fontSize: '0.65rem' }) },
+          style,
+          title: `Filter by ${tag.name}`,
           onClick: (e) => { e.stopPropagation(); this.setTagFilter(tag.id); const b = document.getElementById('task-list-body'); if (b) this.refresh(b.parentElement); }
         },
           // Client, Project and Via tags read as just their name; other types keep the "Type:" label
@@ -180,19 +156,40 @@ export class TaskList {
 
   _renderSubtasks(task) {
     const subtasks = task.subtasks || []; const completed = subtasks.filter(s => s.is_completed).length; const total = subtasks.length; const pct = total > 0 ? (completed / total) * 100 : 0;
-    const container = createElement('div', { className: 'subtask-preview', style: { marginTop: '12px', borderLeft: '2px solid var(--border-color)', paddingLeft: '12px' } },
-      createElement('div', { className: 'subtask-progress', style: { marginBottom: '8px' } }, createElement('div', { className: 'subtask-progress-bar' }, createElement('div', { className: 'subtask-progress-fill', style: { width: `${pct}%` } })), createElement('span', { className: 'subtask-progress-text' }, `${completed}/${total}`)));
+    const container = createElement('div', { className: 'subtask-preview' },
+      createElement('div', { className: 'subtask-progress' },
+        createElement('div', { className: 'subtask-progress-bar' }, createElement('div', { className: 'subtask-progress-fill', style: { width: `${pct}%` } })),
+        createElement('span', { className: 'subtask-progress-text' }, `${completed}/${total}`)
+      )
+    );
     subtasks.forEach(s => {
-      const item = createElement('div', { className: `subtask-item${s.is_completed ? ' completed' : ''}`, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '2px 0' } },
-        createElement('label', { className: 'task-checkbox', style: { transform: 'scale(0.8)', flexShrink: '0' }, onClick: (e) => e.stopPropagation() }, createElement('input', { type: 'checkbox', ...(s.is_completed ? { checked: 'true' } : {}), onChange: () => this._toggleSubtask(s) }), createElement('span', { className: 'checkmark' })),
-        createElement('span', { className: 'subtask-title', style: { fontSize: '0.75rem' } }, s.title)
-      );
-      container.appendChild(item);
+      container.appendChild(createElement('div', { className: `subtask-item${s.is_completed ? ' completed' : ''}` },
+        createElement('label', { className: 'task-checkbox sm', onClick: (e) => e.stopPropagation() },
+          createElement('input', { type: 'checkbox', 'aria-label': `Complete ${s.title}`, ...(s.is_completed ? { checked: 'true' } : {}), onChange: () => this._toggleSubtask(s) }),
+          createElement('span', { className: 'checkmark' })
+        ),
+        createElement('span', { className: 'subtask-title' }, s.title)
+      ));
     });
     return container;
   }
-  _filterChip(label, active, onClick) { return createElement('button', { className: `filter-chip${active ? ' active' : ''}`, onClick }, label); }
-  _renderEmptyState() { const msgs = { all: { title: 'No tasks' } }; const msg = msgs[this.view] || msgs.all; return createElement('div', { className: 'empty-state' }, createElement('h3', {}, msg.title)); }
+  _filterChip(label, active, onClick, trailing = null) { return createElement('button', { className: `filter-chip${active ? ' active' : ''}`, 'aria-pressed': String(active), onClick }, label, trailing); }
+  _renderEmptyState() {
+    const searching = !!this.filters.search || !!this.filters.tag_id;
+    const msgs = {
+      all: ['inbox', 'No tasks', 'Create a task to get started.'],
+      today: ['calendarCheck', 'Nothing due today', 'Tasks dated today will show up here.'],
+      upcoming: ['clock', 'Nothing upcoming', 'Tasks dated in the next 7 days will show up here.'],
+      priority: ['flag', 'No priority tasks', 'High and urgent tasks will show up here.'],
+      completed: ['circleCheck', 'No completed tasks', 'Tasks you finish will show up here.'],
+    };
+    const [ic, title, text] = searching ? ['search', 'No matching tasks', 'Try a different search or clear the filter.'] : (msgs[this.view] || msgs.all);
+    return createElement('div', { className: 'empty-state' },
+      createElement('div', { className: 'empty-icon' }, icon(ic, { size: 20 })),
+      createElement('h3', {}, title),
+      createElement('p', {}, text)
+    );
+  }
   async _toggleTask(t) {
     try {
       await api.toggleTask(t.id); t.is_completed = !t.is_completed;
@@ -210,7 +207,7 @@ export class TaskList {
       const close = (answer) => { document.removeEventListener('keydown', onKey); overlay.remove(); resolve(answer); };
       const onKey = (e) => { if (e.key === 'Escape') close(false); };
       const overlay = createElement('div', { className: 'modal-overlay', onClick: (e) => { if (e.target === overlay) close(false); } },
-        createElement('div', { className: 'modal', style: { maxWidth: '420px' } },
+        createElement('div', { className: 'modal modal-sm' },
           createElement('div', { className: 'modal-header' }, createElement('h3', {}, 'Add to Daily Tasks?')),
           createElement('div', { className: 'modal-body' }, createElement('div', {}, `Log "${text}" as a daily task entry for today?`)),
           createElement('div', { className: 'modal-footer' },
@@ -225,7 +222,7 @@ export class TaskList {
   }
   async _toggleSubtask(s) { try { await api.toggleSubtask(s.id); const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } } catch (err) { showToast(err.message, 'error'); } }
   _editTask(t) { if (!this.taskForm) this.taskForm = new TaskForm({ onSave: async () => { const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } this.onRefreshSidebar?.(); }, onClose: () => { } }); this.taskForm.open(t); }
-  async _deleteTask(t) { if (!confirm(`Delete?`)) return; try { await api.deleteTask(t.id); showToast('Deleted', 'success'); const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } this.onRefreshSidebar?.(); } catch (err) { showToast(err.message, 'error'); } }
+  async _deleteTask(t) { if (!confirm(`Delete "${t.title}"?`)) return; try { await api.deleteTask(t.id); showToast('Deleted', 'success'); const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } this.onRefreshSidebar?.(); } catch (err) { showToast(err.message, 'error'); } }
   async refresh(c) { await this.loadTasks(); if (c) this.render(c); else { const b = document.getElementById('task-list-body'); if (b) this._renderTaskList(b); } }
   openNewTaskForm() { if (!this.taskForm) this.taskForm = new TaskForm({ onSave: async () => { const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } this.onRefreshSidebar?.(); }, onClose: () => { } }); this.taskForm.open(null); }
 }

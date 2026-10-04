@@ -3,7 +3,8 @@
 // ============================================================
 
 import { api } from '../api.js';
-import { createElement, showToast } from '../utils.js';
+import { createElement, showToast, getEffectiveTheme, setTheme } from '../utils.js';
+import { icon } from '../icons.js';
 
 export class Sidebar {
   constructor({ onNavigate, onGroupSelect }) {
@@ -28,7 +29,10 @@ export class Sidebar {
     const sidebar = createElement('aside', { className: 'sidebar', id: 'sidebar' },
       // Header
       createElement('div', { className: 'sidebar-header' },
-        createElement('img', { src: 'logo.png', alt: 'tasks', className: 'sidebar-logo' })
+        createElement('div', { className: 'brand' },
+          createElement('span', { className: 'brand-mark' }, icon('listChecks', { size: 16 })),
+          'Tasks'
+        )
       ),
 
       // Navigation
@@ -36,33 +40,30 @@ export class Sidebar {
         // Main nav
         createElement('div', { className: 'nav-section' },
           createElement('div', { className: 'nav-section-title' }, 'Tasks'),
-          this._navItem('all', '', 'All Tasks'),
-          this._navItem('today', '', 'Today'),
-          this._navItem('upcoming', '', 'Upcoming'),
-          this._navItem('priority', '', 'Priority'),
-          this._navItem('completed', '', 'Completed'),
+          this._navItem('all', 'inbox', 'All Tasks'),
+          this._navItem('today', 'calendarCheck', 'Today'),
+          this._navItem('upcoming', 'clock', 'Upcoming'),
+          this._navItem('priority', 'flag', 'Priority'),
+          this._navItem('completed', 'circleCheck', 'Completed'),
         ),
 
         // Daily log
         createElement('div', { className: 'nav-section' },
           createElement('div', { className: 'nav-section-title' }, 'Daily Tasks'),
-          this._navItem('daily-entry', '', 'Entry'),
-          this._navItem('daily-report', '', 'Report'),
+          this._navItem('daily-entry', 'clipboard', 'Entry'),
+          this._navItem('daily-report', 'fileText', 'Report'),
         ),
 
         // Groups
         createElement('div', { className: 'nav-section', id: 'sidebar-groups-section' },
-          createElement('div', {
-            className: 'nav-section-title',
-            style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
-          },
+          createElement('div', { className: 'nav-section-title' },
             createElement('span', {}, 'Groups'),
             createElement('button', {
-              className: 'btn-ghost',
-              style: { fontSize: '1rem', padding: '0 4px' },
+              className: 'icon-btn',
               onClick: () => this._showAddGroup(),
-              title: 'Add Group',
-            }, '+')
+              title: 'Add group',
+              'aria-label': 'Add group',
+            }, icon('plus', { size: 14 }))
           ),
           createElement('div', { id: 'sidebar-groups-list' },
             ...this.groups.map(g => this._groupItem(g))
@@ -72,19 +73,24 @@ export class Sidebar {
         // Management
         createElement('div', { className: 'nav-section' },
           createElement('div', { className: 'nav-section-title' }, 'Manage'),
-          this._navItem('tags', '', 'Tags'),
-          this._navItem('groups-manage', '', 'Groups'),
+          this._navItem('tags', 'tag', 'Tags'),
+          this._navItem('groups-manage', 'layers', 'Groups'),
         )
       ),
 
       // Footer
       createElement('div', { className: 'sidebar-footer' },
         createElement('button', {
+          className: 'nav-item',
           onClick: () => {
             api.logout();
             window.dispatchEvent(new CustomEvent('auth:logout'));
           }
-        }, 'Sign Out')
+        },
+          createElement('span', { className: 'nav-icon' }, icon('logOut')),
+          createElement('span', { className: 'nav-label' }, 'Sign out')
+        ),
+        this._themeToggle()
       )
     );
 
@@ -92,7 +98,7 @@ export class Sidebar {
     return sidebar;
   }
 
-  _navItem(view, icon, label, badge = null) {
+  _navItem(view, iconName, label, badge = null) {
     const isActive = this.activeView === view && !this.activeGroupId;
     const item = createElement('button', {
       className: `nav-item${isActive ? ' active' : ''}`,
@@ -104,8 +110,8 @@ export class Sidebar {
         this._updateActiveState();
       }
     },
-      createElement('span', { className: 'nav-icon' }, icon),
-      createElement('span', {}, label),
+      createElement('span', { className: 'nav-icon' }, icon(iconName)),
+      createElement('span', { className: 'nav-label' }, label),
     );
 
     if (badge !== null) {
@@ -127,13 +133,26 @@ export class Sidebar {
         this._updateActiveState();
       }
     },
-      createElement('span', {
-        className: 'group-dot',
-        style: { background: group.color, border: 'none' }
-      }),
-      createElement('span', {}, group.name),
+      createElement('span', { className: 'group-dot', style: { background: group.color } }),
+      createElement('span', { className: 'nav-label' }, group.name),
       createElement('span', { className: 'nav-badge' }, String(group.active_task_count || 0))
     );
+  }
+
+  _themeToggle() {
+    const btn = createElement('button', { className: 'icon-btn' });
+    const paint = () => {
+      const dark = getEffectiveTheme() === 'dark';
+      btn.replaceChildren(icon(dark ? 'sun' : 'moon'));
+      btn.title = dark ? 'Switch to light theme' : 'Switch to dark theme';
+      btn.setAttribute('aria-label', btn.title);
+    };
+    btn.addEventListener('click', () => {
+      setTheme(getEffectiveTheme() === 'dark' ? 'light' : 'dark');
+      paint();
+    });
+    paint();
+    return btn;
   }
 
   _updateActiveState() {
@@ -172,8 +191,7 @@ export class Sidebar {
     const input = createElement('input', {
       type: 'text',
       className: 'form-input',
-      placeholder: 'Group name...',
-      style: { fontSize: '0.825rem', margin: '4px 12px 4px 28px', width: 'calc(100% - 40px)' },
+      placeholder: 'Group name…',
     });
 
     const wrapper = createElement('div', { className: 'inline-add' }, input);

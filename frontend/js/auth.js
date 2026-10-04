@@ -4,6 +4,7 @@
 
 import { api } from './api.js';
 import { createElement, showToast } from './utils.js';
+import { icon } from './icons.js';
 
 export function renderLogin(container, onSuccess) {
   container.innerHTML = '';
@@ -11,8 +12,11 @@ export function renderLogin(container, onSuccess) {
   const loginContainer = createElement('div', { className: 'login-container' },
     createElement('div', { className: 'login-card' },
       createElement('div', { className: 'login-logo' },
-        createElement('img', { src: 'logo.svg', alt: 'tasks', className: 'login-logo-img' }),
-        createElement('p', {}, 'Personal Task Manager')
+        createElement('span', { className: 'brand-mark lg' }, icon('listChecks', { size: 22 })),
+        createElement('div', {},
+          createElement('h1', {}, 'Sign in to Tasks'),
+          createElement('p', {}, 'Your personal task manager')
+        )
       ),
       createElement('div', { className: 'login-error', id: 'login-error' }),
       createElement('form', {
@@ -29,7 +33,7 @@ export function renderLogin(container, onSuccess) {
             type: 'text',
             id: 'login-username',
             className: 'form-input',
-            placeholder: 'Enter username',
+            placeholder: 'admin',
             autocomplete: 'username',
             required: 'true',
             value: 'admin',
@@ -48,25 +52,22 @@ export function renderLogin(container, onSuccess) {
         ),
         createElement('button', {
           type: 'submit',
-          className: 'btn btn-primary',
+          className: 'btn btn-primary login-submit',
           id: 'login-submit',
-          style: { width: '100%', marginTop: '8px', padding: '12px' },
-        }, 'Sign In')
+        }, 'Sign in')
       ),
-      createElement('div', {
-        style: { marginTop: '16px', textAlign: 'center' }
-      },
-        createElement('p', {
-          style: { fontSize: '0.75rem', color: 'var(--text-tertiary)' }
-        }, 'API: '),
-        createElement('input', {
-          type: 'text',
-          id: 'api-url-input',
-          className: 'form-input',
-          style: { marginTop: '4px', fontSize: '0.75rem', textAlign: 'center', width: '100%' },
-          value: api.getBaseUrl(),
-          placeholder: 'https://api-tasks.libinfaby.dev',
-        })
+      createElement('details', { className: 'login-advanced' },
+        createElement('summary', {}, 'Advanced'),
+        createElement('div', { className: 'form-group' },
+          createElement('label', { for: 'api-url-input' }, 'API URL'),
+          createElement('input', {
+            type: 'text',
+            id: 'api-url-input',
+            className: 'form-input',
+            value: api.getBaseUrl(),
+            placeholder: 'https://tasks-api.libinfaby.dev',
+          })
+        )
       )
     )
   );
@@ -97,7 +98,7 @@ async function handleLogin(onSuccess) {
     api.setBaseUrl(apiUrl);
   }
 
-  submitBtn.textContent = 'Signing in...';
+  submitBtn.textContent = 'Signing in…';
   submitBtn.disabled = true;
   errorEl.classList.remove('visible');
 
@@ -108,7 +109,7 @@ async function handleLogin(onSuccess) {
   } catch (error) {
     errorEl.textContent = error.message;
     errorEl.classList.add('visible');
-    submitBtn.textContent = 'Sign In';
+    submitBtn.textContent = 'Sign in';
     submitBtn.disabled = false;
   }
 }

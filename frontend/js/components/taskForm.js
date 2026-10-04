@@ -3,7 +3,16 @@
 // ============================================================
 
 import { api } from '../api.js';
-import { createElement, showToast, formatDateInput, formatDatetimeLocal, getChipStyle } from '../utils.js';
+import { createElement, showToast, formatDateInput, formatDatetimeLocal, getChipStyle, readableOnSurface, REPEAT_LABELS } from '../utils.js';
+import { icon } from '../icons.js';
+
+// Unselected options are outlined in the tag's colour; selected ones are filled (see .tag-option)
+function tagOptionStyle(chip, isSelected) {
+  const primary = chip.background === 'transparent' ? chip.color : readableOnSurface(chip.background);
+  return isSelected
+    ? { background: chip.background, color: chip.color }
+    : { background: 'transparent', color: primary };
+}
 
 export class TaskForm {
   constructor({ onSave, onClose }) {
@@ -44,17 +53,17 @@ export class TaskForm {
       createElement('div', { className: 'modal', id: 'task-modal' },
         createElement('div', { className: 'modal-header' },
           createElement('h3', {}, isEdit ? 'Edit Task' : 'New Task'),
-          createElement('button', { className: 'modal-close', onClick: () => this.close() }, 'Close')
+          createElement('button', { className: 'modal-close', title: 'Close', 'aria-label': 'Close', onClick: () => this.close() }, icon('x', { size: 18 }))
         ),
         createElement('div', { className: 'modal-body' },
           createElement('div', { className: 'form-group' },
             createElement('label', { for: 'task-title' }, 'Title'),
             createElement('input', { type: 'text', id: 'task-title', className: 'form-input', placeholder: 'What needs to be done?', value: this.task?.title || '', autofocus: 'true' }),
-            createElement('div', { id: 'selected-tags-preview', className: 'selected-tags-preview', style: { display: 'none', marginTop: '8px' } })
+            createElement('div', { id: 'selected-tags-preview', className: 'selected-tags-preview' })
           ),
           createElement('div', { className: 'form-group' },
             createElement('label', { for: 'task-details' }, 'Details'),
-            createElement('textarea', { id: 'task-details', className: 'form-input', placeholder: 'Add more details...', rows: '3' }, this.task?.details || '')
+            createElement('textarea', { id: 'task-details', className: 'form-input', placeholder: 'Add more details…', rows: '3' }, this.task?.details || '')
           ),
           createElement('div', { className: 'form-row' },
             createElement('div', { className: 'form-group' },
@@ -64,6 +73,13 @@ export class TaskForm {
             createElement('div', { className: 'form-group' },
               createElement('label', { for: 'task-reminder' }, 'Reminder'),
               createElement('input', { type: 'datetime-local', id: 'task-reminder', className: 'form-input', value: formatDatetimeLocal(this.task?.reminder) || '' })
+            ),
+            createElement('div', { className: 'form-group' },
+              createElement('label', { for: 'task-repeat' }, 'Repeat'),
+              createElement('select', { id: 'task-repeat', className: 'form-select' },
+                createElement('option', { value: '' }, 'Does not repeat'),
+                ...Object.entries(REPEAT_LABELS).map(([value, label]) => createElement('option', { value }, label))
+              )
             )
           ),
           createElement('div', { className: 'form-row' },
@@ -94,14 +110,14 @@ export class TaskForm {
             createElement('label', {}, 'Subtasks'),
             createElement('div', { className: 'subtask-editor', id: 'subtask-editor' },
               ...this.subtasks.map((s, i) => this._renderSubtaskItem(s, i)),
-              createElement('button', { className: 'add-subtask-btn', onClick: () => this._addSubtask() }, '+ Add subtask')
+              createElement('button', { type: 'button', className: 'add-subtask-btn', onClick: () => this._addSubtask() }, icon('plus', { size: 15 }), 'Add subtask')
             )
           )
         ),
         createElement('div', { className: 'modal-footer' },
-          isEdit ? createElement('button', { className: 'btn btn-danger btn-sm', onClick: () => this._deleteTask(), style: { marginRight: 'auto' } }, 'Delete') : null,
+          isEdit ? createElement('button', { className: 'btn btn-danger footer-start', onClick: () => this._deleteTask() }, icon('trash'), 'Delete') : null,
           createElement('button', { className: 'btn btn-secondary', onClick: () => this.close() }, 'Cancel'),
-          createElement('button', { className: 'btn btn-primary', id: 'task-save-btn', onClick: () => this._save() }, isEdit ? 'Update' : 'Create Task')
+          createElement('button', { className: 'btn btn-primary', id: 'task-save-btn', onClick: () => this._save() }, isEdit ? 'Save changes' : 'Create task')
         )
       )
     );
@@ -111,6 +127,7 @@ export class TaskForm {
       this._renderTagsPreview();
       const p = document.getElementById('task-priority'); if (p && this.task) p.value = String(this.task.priority || 0);
       const g = document.getElementById('task-group'); if (g && this.task) g.value = String(this.task.group_id || '');
+      const r = document.getElementById('task-repeat'); if (r && this.task) r.value = this.task.reminder_repeat || '';
     }, 100);
   }
 
@@ -118,11 +135,11 @@ export class TaskForm {
     const container = createElement('div', { className: 'tag-selector', id: containerId });
     if (this.tagTypes.length === 0) {
       container.appendChild(createElement('div', { className: 'tag-selector-empty' },
-        createElement('p', { style: { fontSize: '0.8rem', color: 'var(--text-tertiary)', margin: '0' } }, 'No tag types yet.'),
+        createElement('p', {}, 'No tag types yet.'),
         createElement('button', {
-          type: 'button', className: 'add-tag-inline', style: { marginTop: '8px' },
+          type: 'button', className: 'add-tag-inline',
           onClick: () => this._showInlineCreateTagType(containerId, selectedIds, onToggle)
-        }, '+ Create Tag Type')
+        }, icon('plus'), 'Create tag type')
       ));
       return container;
     }
@@ -142,15 +159,11 @@ export class TaskForm {
             const style = getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: type.color, type_fg_color: type.fg_color, type_has_bg: type.has_bg });
             return createElement('button', {
               type: 'button', className: `tag-option${isSelected ? ' selected' : ''}`, dataset: { tagId: tag.id },
-              style: {
-                background: isSelected ? style.background : 'transparent',
-                color: isSelected ? style.color : (style.background === 'transparent' ? style.color : style.background),
-                border: isSelected ? 'none' : `1px solid ${style.background === 'transparent' ? style.color : style.background}`,
-                padding: '4px 10px', margin: '2px', borderRadius: '0', fontSize: '0.75rem', cursor: 'pointer', opacity: isSelected ? '1' : '0.4'
-              },
+              'aria-pressed': String(isSelected),
+              style: tagOptionStyle(style, isSelected),
               onClick: () => onToggle(tag.id),
             }, tag.name);
-          }) : [createElement('span', { style: { fontSize: '0.75rem', color: 'var(--text-tertiary)', fontStyle: 'italic' } }, 'No tags — click + New to add')])
+          }) : [createElement('span', { className: 'tag-selector-none' }, 'No tags yet — use + New to add one')])
         )
       );
       container.appendChild(group);
@@ -165,12 +178,10 @@ export class TaskForm {
     container.querySelector('.inline-tag-form')?.remove();
 
     const nameInput = createElement('input', {
-      type: 'text', className: 'form-input', placeholder: `New ${type.name} tag name...`,
-      style: { height: '32px', fontSize: '0.8rem', flex: '1', minWidth: '0' }
+      type: 'text', className: 'form-input', placeholder: `New ${type.name} tag name…`,
     });
     const saveBtn = createElement('button', {
       type: 'button', className: 'btn btn-primary btn-sm',
-      style: { height: '32px', padding: '0 12px', fontSize: '0.75rem', whiteSpace: 'nowrap' },
       onClick: async () => {
         const name = nameInput.value.trim();
         if (!name) { nameInput.focus(); return; }
@@ -187,16 +198,13 @@ export class TaskForm {
       }
     }, 'Add');
     const cancelBtn = createElement('button', {
-      type: 'button', className: 'btn btn-secondary btn-sm',
-      style: { height: '32px', padding: '0 10px', fontSize: '0.75rem' },
+      type: 'button', className: 'btn btn-ghost btn-sm',
       onClick: () => form.remove()
     }, 'Cancel');
 
     const form = createElement('div', { className: 'inline-tag-form' },
-      createElement('div', { style: { fontSize: '0.7rem', color: 'var(--text-tertiary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.32px' } }, `Add tag to ${type.name}`),
-      createElement('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
-        nameInput, saveBtn, cancelBtn
-      )
+      createElement('div', { className: 'inline-tag-form-title' }, `Add tag to ${type.name}`),
+      createElement('div', { className: 'inline-tag-form-row' }, nameInput, saveBtn, cancelBtn)
     );
 
     // Insert the form at the top of the container
@@ -216,16 +224,11 @@ export class TaskForm {
     container.querySelector('.inline-tag-form')?.remove();
 
     const nameInput = createElement('input', {
-      type: 'text', className: 'form-input', placeholder: 'Tag type name (e.g. Project, Client)...',
-      style: { height: '32px', fontSize: '0.8rem', flex: '1', minWidth: '0' }
+      type: 'text', className: 'form-input', placeholder: 'Tag type name (e.g. Project, Client)…',
     });
-    const colorInput = createElement('input', {
-      type: 'color', value: '#6366f1',
-      style: { width: '32px', height: '32px', padding: '2px', cursor: 'pointer', border: '1px solid var(--border-color)', background: 'var(--bg-input)' }
-    });
+    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: '#6366f1', title: 'Colour' });
     const saveBtn = createElement('button', {
       type: 'button', className: 'btn btn-primary btn-sm',
-      style: { height: '32px', padding: '0 12px', fontSize: '0.75rem', whiteSpace: 'nowrap' },
       onClick: async () => {
         const name = nameInput.value.trim();
         if (!name) { nameInput.focus(); return; }
@@ -241,16 +244,13 @@ export class TaskForm {
       }
     }, 'Create');
     const cancelBtn = createElement('button', {
-      type: 'button', className: 'btn btn-secondary btn-sm',
-      style: { height: '32px', padding: '0 10px', fontSize: '0.75rem' },
+      type: 'button', className: 'btn btn-ghost btn-sm',
       onClick: () => form.remove()
     }, 'Cancel');
 
     const form = createElement('div', { className: 'inline-tag-form' },
-      createElement('div', { style: { fontSize: '0.7rem', color: 'var(--text-tertiary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.32px' } }, 'Create a new tag type'),
-      createElement('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
-        nameInput, colorInput, saveBtn, cancelBtn
-      )
+      createElement('div', { className: 'inline-tag-form-title' }, 'Create a new tag type'),
+      createElement('div', { className: 'inline-tag-form-row' }, nameInput, colorInput, saveBtn, cancelBtn)
     );
 
     container.innerHTML = '';
@@ -288,11 +288,8 @@ export class TaskForm {
       }
       if (tagData && typeData) {
         const style = getChipStyle({ color: tagData.color, fg_color: tagData.fg_color, has_bg: tagData.has_bg, type_color: typeData.color, type_fg_color: typeData.fg_color, type_has_bg: typeData.has_bg });
-        const primaryColor = (style.background === 'transparent' ? style.color : style.background);
-        el.style.background = isSelected ? style.background : 'transparent';
-        el.style.color = isSelected ? style.color : primaryColor;
-        el.style.border = isSelected ? 'none' : `1px solid ${primaryColor}`;
-        el.style.opacity = isSelected ? '1' : '0.4';
+        Object.assign(el.style, tagOptionStyle(style, isSelected));
+        el.setAttribute('aria-pressed', String(isSelected));
       }
     });
     if (containerId === 'task-tags') this._renderTagsPreview();
@@ -300,8 +297,7 @@ export class TaskForm {
 
   _renderTagsPreview() {
     const container = document.getElementById('selected-tags-preview'); if (!container) return;
-    container.innerHTML = ''; if (this.selectedTagIds.size === 0) { container.style.display = 'none'; return; }
-    container.style.display = 'flex'; container.style.flexWrap = 'wrap'; container.style.gap = '6px';
+    container.innerHTML = '';
     this.selectedTagIds.forEach(id => {
       let ft = null; let fty = null;
       for(const type of this.tagTypes) {
@@ -310,27 +306,26 @@ export class TaskForm {
       }
       if (ft && fty) {
         const s = getChipStyle({ color: ft.color, fg_color: ft.fg_color, has_bg: ft.has_bg, type_color: fty.color, type_fg_color: fty.fg_color, type_has_bg: fty.type_has_bg });
-        container.appendChild(createElement('span', { className: 'tag-chip', style: { ...s, fontSize: '0.7rem', padding: '2px 8px', border: 'none' } }, `${fty.name}: ${ft.name}`));
+        container.appendChild(createElement('span', { className: 'tag-chip', style: s }, createElement('span', { className: 'tag-type-label' }, `${fty.name}:`), ` ${ft.name}`));
       }
     });
   }
 
   _renderSubtaskItem(subtask, index) {
     const item = createElement('div', { className: 'subtask-editor-item', dataset: { subtaskIndex: index } },
-      createElement('span', { style: { color: 'var(--text-tertiary)', fontSize: '0.8rem' } }, '-'),
-      createElement('input', { type: 'text', className: 'subtask-title-input', placeholder: 'Subtask title...', value: subtask.title || '', dataset: { subtaskIndex: index } }),
-      createElement('button', { className: 'btn-ghost', style: { fontSize: '0.75rem' }, onClick: () => this._toggleSubtaskTags(index) }, 'Tag'),
-      createElement('button', { className: 'remove-subtask', onClick: () => this._removeSubtask(index) }, 'X')
+      createElement('input', { type: 'text', className: 'subtask-title-input', placeholder: 'Subtask title…', value: subtask.title || '', dataset: { subtaskIndex: index } }),
+      createElement('button', { type: 'button', className: 'icon-btn', title: 'Tags', 'aria-label': 'Subtask tags', onClick: () => this._toggleSubtaskTags(index) }, icon('tag', { size: 15 })),
+      createElement('button', { type: 'button', className: 'icon-btn danger', title: 'Remove', 'aria-label': 'Remove subtask', onClick: () => this._removeSubtask(index) }, icon('x', { size: 15 }))
     );
-    const tagsContainer = createElement('div', { className: 'subtask-tags-selector', id: `subtask-tags-${index}`, style: { display: 'none', paddingLeft: '28px', paddingBottom: '8px' } });
+    const tagsContainer = createElement('div', { className: 'subtask-tags-selector hidden', id: `subtask-tags-${index}` });
     if (!this.subtaskTags.has(index)) this.subtaskTags.set(index, new Set());
     return createElement('div', {}, item, tagsContainer);
   }
 
   _toggleSubtaskTags(index) {
     const c = document.getElementById(`subtask-tags-${index}`); if (!c) return;
-    if (c.style.display === 'none') {
-      c.style.display = 'block'; c.innerHTML = '';
+    if (c.classList.contains('hidden')) {
+      c.classList.remove('hidden'); c.innerHTML = '';
       const ids = this.subtaskTags.get(index) || new Set();
       const sel = this._renderTagSelector(`subtask-tag-sel-${index}`, ids, (tid) => {
         const cur = this.subtaskTags.get(index) || new Set();
@@ -338,7 +333,7 @@ export class TaskForm {
         this.subtaskTags.set(index, cur); this._refreshTagSelector(`subtask-tag-sel-${index}`, cur);
       });
       c.appendChild(sel);
-    } else { c.style.display = 'none'; }
+    } else { c.classList.add('hidden'); }
   }
 
   _addSubtask() {
@@ -361,6 +356,8 @@ export class TaskForm {
     const date = document.getElementById('task-date')?.value || null;
     const reminderVal = document.getElementById('task-reminder')?.value || null;
     const reminder = reminderVal ? new Date(reminderVal).toISOString() : null;
+    // A repeat rule only means something alongside a reminder
+    const reminderRepeat = reminder ? (document.getElementById('task-repeat')?.value || null) : null;
     const priority = parseInt(document.getElementById('task-priority')?.value || '0');
     const groupId = document.getElementById('task-group')?.value || null;
     if (!title) { showToast('Title is required', 'error'); document.getElementById('task-title')?.focus(); return; }
@@ -374,9 +371,9 @@ export class TaskForm {
       }
     });
     const saveBtn = document.getElementById('task-save-btn');
-    if (saveBtn) { saveBtn.textContent = 'Saving...'; saveBtn.disabled = true; }
+    if (saveBtn) { saveBtn.textContent = 'Saving…'; saveBtn.disabled = true; }
     try {
-      const taskData = { title, details: details || null, date, reminder, priority, group_id: groupId ? parseInt(groupId) : null, tag_ids: [...this.selectedTagIds] };
+      const taskData = { title, details: details || null, date, reminder, reminder_repeat: reminderRepeat, priority, group_id: groupId ? parseInt(groupId) : null, tag_ids: [...this.selectedTagIds] };
       if (this.task) {
         await api.updateTask(this.task.id, taskData);
         const oldIds = (this.task.subtasks || []).map(s => s.id); const newIds = subtasks.filter(s => s.id).map(s => s.id);
@@ -390,7 +387,7 @@ export class TaskForm {
       this.close(); this.onSave();
     } catch (err) {
       showToast(err.message, 'error');
-      if (saveBtn) { saveBtn.textContent = this.task ? 'Update' : 'Create Task'; saveBtn.disabled = false; }
+      if (saveBtn) { saveBtn.textContent = this.task ? 'Save changes' : 'Create task'; saveBtn.disabled = false; }
     }
   }
 

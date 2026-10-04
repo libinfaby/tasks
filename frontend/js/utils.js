@@ -155,30 +155,43 @@ export function getTagBg(color, solid = false) {
 }
 
 /**
- * Get chip style object based on color, fg_color and has_bg
+ * Get chip style object based on color, fg_color and has_bg.
+ * Unfilled chips use the colour as text, falling back to a neutral text colour
+ * when it would be unreadable on the current theme (e.g. white text in light mode).
  */
 export function getChipStyle(config) {
   const chipBg = config.color || config.type_color || '#6366f1';
   const chipFg = config.fg_color || config.type_fg_color || '#ffffff';
   // Check both tag levels and group levels if applicable
-  const hasBg = config.has_bg !== undefined ? !!config.has_bg : 
+  const hasBg = config.has_bg !== undefined ? !!config.has_bg :
                (config.type_has_bg !== undefined ? !!config.type_has_bg : true);
 
   if (hasBg) {
-    return {
-      background: chipBg,
-      color: chipFg,
-      border: 'none',
-      boxShadow: 'none'
-    };
-  } else {
-    return {
-      background: 'transparent',
-      color: chipBg,
-      border: 'none',
-      boxShadow: 'none'
-    };
+    return { background: chipBg, color: chipFg };
   }
+  return { background: 'transparent', color: readableOnSurface(chipBg) };
+}
+
+// Card surfaces per theme (keep in sync with --bg-card in styles.css)
+const SURFACES = { light: '#ffffff', dark: '#18181b' };
+
+function relativeLuminance(hex) {
+  let h = hex.replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  if (!/^[0-9a-f]{6}$/i.test(h)) return null;
+  const [r, g, b] = [0, 2, 4].map(i => {
+    const c = parseInt(h.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+export function readableOnSurface(color) {
+  const fg = relativeLuminance(color);
+  const bg = relativeLuminance(SURFACES[getEffectiveTheme()]);
+  if (fg === null) return color;
+  const contrast = (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+  return contrast >= 2.2 ? color : 'var(--text-secondary)';
 }
 
 /**
@@ -215,6 +228,9 @@ export function getPriorityClass(priority) {
   }
 }
 
+// Recurring reminder rules accepted by the API (tasks.reminder_repeat)
+export const REPEAT_LABELS = { daily: 'Daily', weekdays: 'Weekdays', weekly: 'Weekly', monthly: 'Monthly' };
+
 /**
  * Format reminder string to show date and local time (e.g. Today at 1:30 PM)
  */
@@ -231,4 +247,21 @@ export function formatReminder(dateStr) {
   const timeFormatted = `${hours}:${minutes} ${ampm}`;
   
   return `${dateFormatted} at ${timeFormatted}`;
+}
+
+/**
+ * Theme: 'light' | 'dark' saved per browser; unset follows the OS.
+ * The saved value is applied before first paint by an inline script in index.html.
+ */
+export function getEffectiveTheme() {
+  const saved = document.documentElement.dataset.theme;
+  if (saved === 'light' || saved === 'dark') return saved;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+export function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  try { localStorage.setItem('tasks_theme', theme); } catch { /* storage unavailable */ }
+  // Chip colours are computed per theme, so views re-render on change
+  window.dispatchEvent(new CustomEvent('theme:change'));
 }
