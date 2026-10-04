@@ -31,14 +31,13 @@ export class TaskList {
     switch (view) { case 'today': return { date_from: today, date_to: today, completed: 'false' }; case 'upcoming': return { date_from: today, date_to: nextWeek, completed: 'false' }; case 'priority': return { completed: 'false' }; case 'completed': return { completed: 'true' }; default: return { completed: 'false' }; }
   }
   async loadTasks() { try { const data = await api.getTasks(this.filters); this.tasks = data.tasks || []; if (this.view === 'priority') this.tasks = this.tasks.filter(t => t.priority > 0); } catch (err) { showToast(err.message, 'error'); this.tasks = []; } }
-  getViewTitle() { switch (this.view) { case 'all': return 'All Tasks'; case 'today': return 'Today'; case 'upcoming': return 'Upcoming'; case 'priority': return 'Priority'; case 'completed': return 'Completed'; case 'group': return this.groupFilter?.name || 'Group'; default: return 'Tasks'; } }
+  getViewTitle() { switch (this.view) { case 'all': return 'All Tasks'; case 'today': return 'Today'; case 'upcoming': return 'Upcoming'; case 'priority': return 'Urgent'; case 'completed': return 'Completed'; case 'group': return this.groupFilter?.name || 'Group'; default: return 'Tasks'; } }
   render(container) {
     container.innerHTML = '';
     const fb = createElement('div', { className: 'filter-bar' },
       this._filterChip('All', this.view === 'all' && !this.groupFilter, () => { this.setView('all'); this.refresh(container); }),
       this._filterChip('Completed', this.filters.completed === 'true', () => { this.filters.completed = this.filters.completed === 'true' ? 'false' : 'true'; this.refresh(container); }),
       this._filterChip('Urgent', this.filters.priority === '2', () => { this.filters.priority = this.filters.priority === '2' ? '' : '2'; this.refresh(container); }),
-      this._filterChip('High', this.filters.priority === '1', () => { this.filters.priority = this.filters.priority === '1' ? '' : '1'; this.refresh(container); }),
       ...(this.filters.tag_id ? [this._filterChip('Tag filter', true, () => { this.setTagFilter(''); this.refresh(container); }, icon('x', { size: 13 }))] : [])
     );
     container.appendChild(fb); const body = createElement('div', { className: 'content-body', id: 'task-list-body' }); container.appendChild(body); this._renderTaskList(body);
@@ -49,7 +48,7 @@ export class TaskList {
     if (this.tasks.length === 0) { body.appendChild(this._renderEmptyState()); return; }
     if (this.view === 'all' && !this.groupFilter) {
       const g = this._groupTasksByGroup();
-      if (g.priority.length > 0) body.appendChild(this._renderSection('Priority', g.priority, { color: 'var(--priority-urgent)' }));
+      if (g.priority.length > 0) body.appendChild(this._renderSection('Urgent', g.priority, { color: 'var(--priority-urgent)' }));
       if (g.ungrouped.length > 0) body.appendChild(this._renderSection('Tasks', g.ungrouped, { color: 'var(--accent)' }));
       Object.entries(g.groups).forEach(([id, { group, tasks }]) => { body.appendChild(this._renderSection(group.name, tasks, group)); });
     } else { body.appendChild(createElement('div', { className: 'task-list' }, ...this.tasks.map((t, i) => this._renderTaskCard(t, i)))); }
@@ -77,7 +76,7 @@ export class TaskList {
 
   _renderTaskCard(task, index = 0) {
     const card = createElement('div', {
-      className: `task-card priority-${task.priority}${task.is_completed ? ' completed' : ''}`,
+      className: `task-card${task.priority > 0 ? ' urgent' : ''}${task.is_completed ? ' completed' : ''}`,
       onClick: (e) => { if (e.target.closest('.task-checkbox') || e.target.closest('.task-action-btn') || e.target.closest('.selected-tag-clickable')) return; this._editTask(task); },
     },
       createElement('label', { className: 'task-checkbox', title: task.is_completed ? 'Mark as not done' : 'Mark as done', onClick: (e) => e.stopPropagation() },
@@ -180,7 +179,7 @@ export class TaskList {
       all: ['inbox', 'No tasks', 'Create a task to get started.'],
       today: ['calendarCheck', 'Nothing due today', 'Tasks dated today will show up here.'],
       upcoming: ['clock', 'Nothing upcoming', 'Tasks dated in the next 7 days will show up here.'],
-      priority: ['flag', 'No priority tasks', 'High and urgent tasks will show up here.'],
+      priority: ['flag', 'No urgent tasks', 'Urgent tasks will show up here.'],
       completed: ['circleCheck', 'No completed tasks', 'Tasks you finish will show up here.'],
     };
     const [ic, title, text] = searching ? ['search', 'No matching tasks', 'Try a different search or clear the filter.'] : (msgs[this.view] || msgs.all);

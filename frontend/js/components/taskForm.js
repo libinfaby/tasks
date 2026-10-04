@@ -3,7 +3,7 @@
 // ============================================================
 
 import { api } from '../api.js';
-import { createElement, showToast, formatDateInput, formatDatetimeLocal, getChipStyle, readableOnSurface, REPEAT_LABELS } from '../utils.js';
+import { createElement, showToast, formatDateInput, formatDatetimeLocal, getChipStyle, readableOnSurface, REPEAT_LABELS, PRIORITY_URGENT } from '../utils.js';
 import { icon } from '../icons.js';
 
 // Unselected options are outlined in the tag's colour; selected ones are filled (see .tag-option)
@@ -87,8 +87,7 @@ export class TaskForm {
               createElement('label', { for: 'task-priority' }, 'Priority'),
               createElement('select', { id: 'task-priority', className: 'form-select' },
                 createElement('option', { value: '0' }, 'Normal'),
-                createElement('option', { value: '1' }, 'High'),
-                createElement('option', { value: '2' }, 'Urgent')
+                createElement('option', { value: String(PRIORITY_URGENT) }, 'Urgent')
               )
             ),
             createElement('div', { className: 'form-group' },
@@ -125,7 +124,7 @@ export class TaskForm {
     setTimeout(() => {
       document.getElementById('task-title')?.focus();
       this._renderTagsPreview();
-      const p = document.getElementById('task-priority'); if (p && this.task) p.value = String(this.task.priority || 0);
+      const p = document.getElementById('task-priority'); if (p && this.task) p.value = String(this.task.priority > 0 ? PRIORITY_URGENT : 0);
       const g = document.getElementById('task-group'); if (g && this.task) g.value = String(this.task.group_id || '');
       const r = document.getElementById('task-repeat'); if (r && this.task) r.value = this.task.reminder_repeat || '';
     }, 100);

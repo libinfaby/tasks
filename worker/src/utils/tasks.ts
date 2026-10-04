@@ -11,6 +11,11 @@ function chunk<T>(items: T[], size = CHUNK_SIZE): T[][] {
 
 const placeholders = (n: number) => new Array(n).fill('?').join(',');
 
+// Tasks are either normal (0) or urgent (2). High (1) was retired, so any raised priority an older
+// client sends is stored as urgent.
+export const PRIORITY_URGENT = 2;
+export const normalizePriority = (priority: unknown): number => (Number(priority) > 0 ? PRIORITY_URGENT : 0);
+
 // Attach subtasks (with their tags), tags and group to each task using a fixed
 // number of queries, regardless of how many tasks there are.
 export async function enrichTasks(db: D1Database, tasks: any[]): Promise<any[]> {

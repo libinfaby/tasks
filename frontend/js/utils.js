@@ -206,26 +206,21 @@ export function stringToColor(str) {
   return colors[Math.abs(hash) % colors.length];
 }
 
+// Tasks are normal (0) or urgent (2). High (1) was retired; any raised priority reads as urgent.
+export const PRIORITY_URGENT = 2;
+
 /**
  * Priority label
  */
 export function getPriorityLabel(priority) {
-  switch (priority) {
-    case 2: return 'Urgent';
-    case 1: return 'High';
-    default: return 'Normal';
-  }
+  return priority > 0 ? 'Urgent' : 'Normal';
 }
 
 /**
  * Priority CSS class
  */
 export function getPriorityClass(priority) {
-  switch (priority) {
-    case 2: return 'urgent';
-    case 1: return 'high';
-    default: return '';
-  }
+  return priority > 0 ? 'urgent' : '';
 }
 
 // Recurring reminder rules accepted by the API (tasks.reminder_repeat)

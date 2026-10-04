@@ -21,7 +21,6 @@ Source of truth: the `:root` blocks in `styles.css`. The Android app mirrors the
 | `--accent-hover` | `#4f4fc4` | `#6e6ade` | |
 | `--accent-text` | `#4c4bbd` | `#a8a4ff` | Accent-coloured text (Today, links) |
 | `--priority-urgent` | `#e5484d` | `#ff6369` | Urgent flag + checkbox ring |
-| `--priority-high` | `#ef6c1a` | `#ff8b3e` | High flag + checkbox ring |
 | `--success` | `#30a46c` | `#3dd68c` | |
 | `--danger` | `#e5484d` | `#ff6369` | Destructive actions, overdue |
 

@@ -43,7 +43,7 @@ export class Sidebar {
           this._navItem('all', 'inbox', 'All Tasks'),
           this._navItem('today', 'calendarCheck', 'Today'),
           this._navItem('upcoming', 'clock', 'Upcoming'),
-          this._navItem('priority', 'flag', 'Priority'),
+          this._navItem('priority', 'flag', 'Urgent'),
           this._navItem('completed', 'circleCheck', 'Completed'),
         ),
 

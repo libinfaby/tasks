@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Env } from '../index';
-import { enrichTasks, linkTagsStatement } from '../utils/tasks';
+import { enrichTasks, linkTagsStatement, normalizePriority } from '../utils/tasks';
 import { isRepeatRule } from '../utils/recurrence';
 
 type Variables = { userId: string };
@@ -146,7 +146,7 @@ taskRoutes.post('/', async (c) => {
       ).bind(
         title.trim(),
         details?.trim() || null,
-        priority || 0,
+        normalizePriority(priority),
         date || null,
         reminder || null,
         reminder_repeat || null,
@@ -224,7 +224,7 @@ taskRoutes.put('/:id', async (c) => {
       ).bind(
         title?.trim() || null,
         details !== undefined ? (details?.trim() || null) : null,
-        priority !== undefined ? priority : null,
+        priority != null ? normalizePriority(priority) : null,
         date !== undefined ? (date || null) : null,
         reminder !== undefined ? (reminder || null) : null,
         // Unlike the other fields, an omitted repeat rule is kept, so older clients don't clear it

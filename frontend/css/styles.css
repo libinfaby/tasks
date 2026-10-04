@@ -41,8 +41,6 @@
   /* Semantic */
   --priority-urgent:    #e5484d;
   --priority-urgent-bg: rgba(229, 72, 77, 0.10);
-  --priority-high:      #ef6c1a;
-  --priority-high-bg:   rgba(239, 108, 26, 0.10);
   --success:    #30a46c;
   --success-bg: rgba(48, 164, 108, 0.10);
   --warning:    #ef6c1a;
@@ -116,8 +114,6 @@
     --accent-glow:  rgba(110, 106, 222, 0.35);
     --priority-urgent:    #ff6369;
     --priority-urgent-bg: rgba(255, 99, 105, 0.14);
-    --priority-high:      #ff8b3e;
-    --priority-high-bg:   rgba(255, 139, 62, 0.14);
     --success:    #3dd68c;
     --success-bg: rgba(61, 214, 140, 0.12);
     --warning:    #ff8b3e;
@@ -153,8 +149,6 @@
   --accent-glow:  rgba(110, 106, 222, 0.35);
   --priority-urgent:    #ff6369;
   --priority-urgent-bg: rgba(255, 99, 105, 0.14);
-  --priority-high:      #ff8b3e;
-  --priority-high-bg:   rgba(255, 139, 62, 0.14);
   --success:    #3dd68c;
   --success-bg: rgba(61, 214, 140, 0.12);
   --warning:    #ff8b3e;
@@ -594,7 +588,6 @@ button:focus:not(:focus-visible) { outline: none; }
 }
 .priority-badge .icon { width: 12px; height: 12px; }
 .priority-badge.urgent { color: var(--priority-urgent); background: var(--priority-urgent-bg); }
-.priority-badge.high   { color: var(--priority-high);   background: var(--priority-high-bg); }
 
 /* Row actions: revealed on hover (always visible on touch) */
 .task-card-actions {
@@ -630,8 +623,7 @@ button:focus:not(:focus-visible) { outline: none; }
   margin-top: 2px;
   --check-color: var(--border-color-hover);
 }
-.task-card.priority-1 > .task-checkbox { --check-color: var(--priority-high); }
-.task-card.priority-2 > .task-checkbox { --check-color: var(--priority-urgent); }
+.task-card.urgent > .task-checkbox { --check-color: var(--priority-urgent); }
 
 .task-checkbox input {
   position: absolute;
