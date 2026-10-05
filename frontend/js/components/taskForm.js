@@ -32,7 +32,7 @@ export function openTaskEditor(task, { onSaved }) {
   let saving = false;
 
   // ---------- Header ----------
-  const groupSlot = h('div');
+  const groupSlot = h('div', { className: 'group-slot' });
   const renderGroup = () => {
     const g = store.groups.find(x => x.id === d.groupId);
     const t = g ? tonal(g.color) : null;

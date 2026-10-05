@@ -822,11 +822,12 @@ svg.shape { display: block; width: 100%; height: 100%; }
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  max-width: 60%;
-  flex-shrink: 0;
+  max-width: 100%;
   font-size: 14px;
   font-weight: 600;
 }
+/* The picker's slot is the flex item: it keeps the chip's full width, up to 60% of the header */
+.group-slot { display: flex; flex-shrink: 0; max-width: 60%; min-width: 0; }
 .group-picker.none { background: var(--surface-container-high); color: var(--on-surface-variant); }
 .group-picker .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .group-picker .icon.small { width: 18px; height: 18px; }
