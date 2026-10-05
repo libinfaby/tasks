@@ -28,9 +28,9 @@ import javax.inject.Inject
 /** The task views: three bottom-bar tabs plus one per group. */
 sealed interface TaskView {
     val title: String
+    data object All : TaskView { override val title = "All tasks" }
     data object Today : TaskView { override val title = "Today" }
     data object Upcoming : TaskView { override val title = "Upcoming" }
-    data object All : TaskView { override val title = "All tasks" }
     data class Group(val id: Long, val name: String) : TaskView { override val title get() = name }
 }
 
@@ -59,7 +59,7 @@ private data class Query(val view: TaskView, val filters: Filters, val search: S
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class TaskListViewModel @Inject constructor(private val repo: TasksRepository) : ViewModel() {
-    private val view = MutableStateFlow<TaskView>(TaskView.Today)
+    private val view = MutableStateFlow<TaskView>(TaskView.All)
     private val filters = MutableStateFlow(Filters())
     private val search = MutableStateFlow(Search())
     private val refreshTick = MutableStateFlow(0)

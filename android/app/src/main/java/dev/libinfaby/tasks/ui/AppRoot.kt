@@ -59,9 +59,9 @@ import dev.libinfaby.tasks.ui.theme.TasksIcons
 private data class Tab(val destination: Destination, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
 
 private val TABS = listOf(
+    Tab(Destination.Tasks(TaskView.All), "All tasks", TasksIcons.Inbox, TasksIcons.InboxFilled),
     Tab(Destination.Tasks(TaskView.Today), "Today", TasksIcons.Today, TasksIcons.TodayFilled),
     Tab(Destination.Tasks(TaskView.Upcoming), "Upcoming", TasksIcons.Upcoming, TasksIcons.UpcomingFilled),
-    Tab(Destination.Tasks(TaskView.All), "All tasks", TasksIcons.Inbox, TasksIcons.InboxFilled),
     Tab(Destination.Daily(report = false), "Daily log", TasksIcons.DailyLog, TasksIcons.DailyLogFilled),
 )
 

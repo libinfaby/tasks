@@ -37,7 +37,7 @@ sealed interface Destination {
     data object Settings : Destination
 
     companion object {
-        val Start: Destination = Tasks(TaskView.Today)
+        val Start: Destination = Tasks(TaskView.All)
     }
 }
 
@@ -96,7 +96,7 @@ class AppViewModel @Inject constructor(
         _destination.value = d
     }
 
-    /** Back: a menu screen returns to the last tab, another tab returns to Today. False when already there. */
+    /** Back: a menu screen returns to the last tab, another tab returns to All tasks. False when already there. */
     fun back(): Boolean = when {
         !_destination.value.isRoot -> { _destination.value = lastRoot; true }
         _destination.value != Destination.Start -> { go(Destination.Start); true }
