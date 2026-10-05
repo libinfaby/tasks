@@ -141,4 +141,8 @@ data class GroupWrite(
 )
 
 @Serializable data class DailyLogWrite(val date: String, val text: String)
+
+/** Preferences shared with the web app (GET/PUT /settings). */
+@Serializable data class SettingsDto(@SerialName("default_group_id") val defaultGroupId: Long? = null)
+@Serializable data class SettingsResponse(val settings: SettingsDto = SettingsDto())
 @Serializable data class DailyLogUpdate(val text: String)

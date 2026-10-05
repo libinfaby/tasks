@@ -8,6 +8,7 @@ import dev.libinfaby.tasks.data.api.DailyLogWrite
 import dev.libinfaby.tasks.data.api.GroupDto
 import dev.libinfaby.tasks.data.api.GroupWrite
 import dev.libinfaby.tasks.data.api.LoginRequest
+import dev.libinfaby.tasks.data.api.SettingsDto
 import dev.libinfaby.tasks.data.api.SubtaskWrite
 import dev.libinfaby.tasks.data.api.TagTypeDto
 import dev.libinfaby.tasks.data.api.TagTypeWrite
@@ -118,6 +119,15 @@ class TasksRepository @Inject constructor(
         val groups = api.groups().groups
         blobDao.put(BlobEntity(KEY_TAG_TYPES, tasksJson.encodeToString(ListSerializer(TagTypeDto.serializer()), types)))
         blobDao.put(BlobEntity(KEY_GROUPS, tasksJson.encodeToString(ListSerializer(GroupDto.serializer()), groups)))
+        // Shared with the web app; kept locally so new tasks get it offline. An older server without
+        // /settings leaves the local value alone.
+        runCatching { api.settings().settings }.onSuccess { settings.setDefaultGroup(it.defaultGroupId) }
+    }
+
+    /** Saves the default group on the server (so the web app uses it too), then locally. */
+    suspend fun setDefaultGroup(id: Long?) {
+        api.updateSettings(SettingsDto(id))
+        settings.setDefaultGroup(id)
     }
 
     /** Server-side query for views the cache doesn't hold (completed tasks, search). */

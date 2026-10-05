@@ -6,6 +6,7 @@ import { subtaskRoutes } from './routes/subtasks';
 import { tagRoutes } from './routes/tags';
 import { groupRoutes } from './routes/groups';
 import { dailyRoutes } from './routes/daily';
+import { settingsRoutes } from './routes/settings';
 import { authMiddleware } from './middleware/auth';
 import { sendPushNotification } from './utils/webpush';
 import { isRepeatRule, nextOccurrence } from './utils/recurrence';
@@ -54,6 +55,7 @@ app.use('/tags/*', authMiddleware);
 app.use('/tag-types/*', authMiddleware);
 app.use('/groups/*', authMiddleware);
 app.use('/daily/*', authMiddleware);
+app.use('/settings/*', authMiddleware);
 
 app.route('/tasks', taskRoutes);
 app.route('/subtasks', subtaskRoutes);
@@ -61,6 +63,7 @@ app.route('/tags', tagRoutes);
 app.route('/tag-types', tagRoutes);
 app.route('/groups', groupRoutes);
 app.route('/daily', dailyRoutes);
+app.route('/settings', settingsRoutes);
 
 // 404 fallback
 app.notFound((c) => c.json({ error: 'Not found' }, 404));

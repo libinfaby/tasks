@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { Env } from '../index';
+import { DEFAULT_GROUP_KEY } from '../utils/settings';
 
 type Variables = { userId: string };
 
@@ -111,8 +112,9 @@ groupRoutes.delete('/:id', async (c) => {
   const id = parseInt(c.req.param('id'));
 
   try {
-    // Ungroup tasks first
+    // Ungroup tasks first, and stop new tasks defaulting to it
     await db.prepare('UPDATE tasks SET group_id = NULL WHERE group_id = ?').bind(id).run();
+    await db.prepare('DELETE FROM settings WHERE key = ? AND value = ?').bind(DEFAULT_GROUP_KEY, String(id)).run();
 
     const result = await db.prepare('DELETE FROM task_groups WHERE id = ?').bind(id).run();
     if (result.meta.changes === 0) {

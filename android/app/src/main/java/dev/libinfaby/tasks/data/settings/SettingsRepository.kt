@@ -29,7 +29,7 @@ data class Settings(
     val apiUrl: String = BuildConfig.API_BASE_URL,
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val wallpaperColors: Boolean = false,
-    /** Group new tasks start in; null for none. */
+    /** Group new tasks start in; null for none. Mirrors the server's shared setting. */
     val defaultGroupId: Long? = null,
     val lastSyncAt: Long = 0,
 ) {

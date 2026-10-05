@@ -1,6 +1,7 @@
 package dev.libinfaby.tasks.ui
 
 import android.content.Context
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.libinfaby.tasks.data.api.GroupDto
@@ -109,7 +110,10 @@ class AppViewModel @Inject constructor(
 
     fun setWallpaperColors(on: Boolean) = viewModelScope.launch { settingsRepo.setWallpaperColors(on) }
 
-    fun setDefaultGroup(id: Long?) = viewModelScope.launch { settingsRepo.setDefaultGroup(id) }
+    fun setDefaultGroup(id: Long?) = viewModelScope.launch {
+        runCatching { repo.setDefaultGroup(id) }
+            .onFailure { Toast.makeText(context, it.userMessage(), Toast.LENGTH_SHORT).show() }
+    }
 
     fun openNewTask() { editor.value = EditorRequest(null) }
 

@@ -55,6 +55,9 @@ interface TasksApi {
     @PUT("groups/{id}") suspend fun updateGroup(@Path("id") id: Long, @Body body: GroupWrite): MessageResponse
     @DELETE("groups/{id}") suspend fun deleteGroup(@Path("id") id: Long): MessageResponse
 
+    @GET("settings") suspend fun settings(): SettingsResponse
+    @PUT("settings") suspend fun updateSettings(@Body body: SettingsDto): MessageResponse
+
     @GET("daily") suspend fun dailyLogs(@QueryMap params: Map<String, String>): DailyLogsResponse
     @POST("daily") suspend fun createDailyLog(@Body body: DailyLogWrite): CreatedResponse
     @PUT("daily/{id}") suspend fun updateDailyLog(@Path("id") id: Long, @Body body: DailyLogUpdate): MessageResponse
