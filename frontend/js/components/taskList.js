@@ -8,7 +8,7 @@ import { createElement as h, setChildren, debounce, showSnackbar, showToast, tod
   formatReminder, isOverdue, isToday, tonal, REPEAT_LABELS,
 } from '../utils.js';
 import { icon } from '../icons.js';
-import { chip, emptyState, fab, scallop, sectionHeader, spinner, topBar } from '../ui.js';
+import { chip, emptyState, fab, sectionHeader, spinner, topBar } from '../ui.js';
 import { store } from '../store.js';
 
 const TITLES = { all: 'All tasks', today: 'Today', upcoming: 'Upcoming' };
@@ -232,7 +232,7 @@ export function createTaskListPage({ view, group = null, nav }) {
     return card;
   }
 
-  /** Round checkbox whose ring takes the priority colour; checking pops a filled scallop and a burst. */
+  /** Round checkbox whose ring takes the priority colour; checking pops a filled circle and a burst. */
   function checkbox(task, done) {
     const btn = h('button', {
       type: 'button',
@@ -242,7 +242,7 @@ export function createTaskListPage({ view, group = null, nav }) {
       'aria-label': done ? `Mark ${task.title} not done` : `Complete ${task.title}`,
     },
       h('span', { className: 'ring' }),
-      h('span', { className: 'scallop' }, scallop(), icon('check', { size: 20 })),
+      h('span', { className: 'scallop' }, icon('check', { size: 20 })),
     );
     btn.addEventListener('click', (e) => {
       e.stopPropagation();

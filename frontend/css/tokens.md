@@ -32,7 +32,7 @@ and fill are no longer drawn.
 
 Bricolage Grotesque (display, headlines, titles; optical size pinned at 36) and Figtree (everything else),
 on the Android type scale: display-small 36, headline-small 24, title-large 22, title-medium 16/600,
-body-large 16, body-medium 14, label-large 14/600, label-small 12/600. Task titles are 17px regular.
+body-large 16, body-medium 14, label-large 14/600, label-small 12/600. Task titles are 16px regular.
 
 ## Shape & motion
 

@@ -70,7 +70,7 @@ private fun TagDto.rank(): Int {
 fun priorityColor(priority: Int): Color = if (priority > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
 
 /**
- * Round checkbox whose ring takes the priority colour. Checking it morphs into a filled scallop with a
+ * Round checkbox whose ring takes the priority colour. Checking it fills into a solid circle with a
  * bouncy pop, a burst of confetti and a confirm haptic.
  */
 @Composable
@@ -110,10 +110,10 @@ private fun CheckboxFace(pop: Float, priority: Int) {
         }
         if (pop > 0f) {
             Surface(
-                shape = Scallop,
+                shape = CircleShape,
                 color = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(30.dp).graphicsLayer {
+                modifier = Modifier.size(26.dp).graphicsLayer {
                     scaleX = pop
                     scaleY = pop
                     rotationZ = (1f - pop) * -60f
@@ -172,7 +172,7 @@ fun TaskRow(
             Column(modifier = Modifier.weight(1f).padding(top = 12.dp).alpha(fade)) {
                 Text(
                     task.title,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, lineHeight = 23.sp),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 22.sp),
                     color = if (done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                     textDecoration = if (done) TextDecoration.LineThrough else null,
                 )
