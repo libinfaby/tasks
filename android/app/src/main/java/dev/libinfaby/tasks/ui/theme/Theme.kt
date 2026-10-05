@@ -26,36 +26,38 @@ import androidx.compose.ui.unit.sp
 import dev.libinfaby.tasks.R
 import dev.libinfaby.tasks.data.settings.ThemeMode
 
-/** "Grape": the scheme used when wallpaper colours are off (and by the widget). */
+/**
+ * "Monochrome": the scheme used when wallpaper colours are off (and by the widget). Captured from Android's
+ * monochrome wallpaper preset; the web app's tokens (frontend/css/styles.css) mirror it. Error roles keep Compose's
+ * defaults, which is also what the dynamic schemes use.
+ */
 object TasksColors {
     val Light = lightColorScheme(
-        primary = Color(0xFF6750A4), onPrimary = Color.White, primaryContainer = Color(0xFFEADDFF), onPrimaryContainer = Color(0xFF4F378A),
-        inversePrimary = Color(0xFFD0BCFF),
-        secondary = Color(0xFF625B71), onSecondary = Color.White, secondaryContainer = Color(0xFFE8DEF8), onSecondaryContainer = Color(0xFF4A4458),
-        tertiary = Color(0xFF8F4C2E), onTertiary = Color.White, tertiaryContainer = Color(0xFFFFDBCB), onTertiaryContainer = Color(0xFF6E3A1F),
-        background = Color(0xFFFEF7FF), onBackground = Color(0xFF1D1B20), surface = Color(0xFFFEF7FF), onSurface = Color(0xFF1D1B20),
-        surfaceVariant = Color(0xFFE7E0EB), onSurfaceVariant = Color(0xFF49454F), surfaceTint = Color(0xFF6750A4),
-        surfaceBright = Color(0xFFFEF7FF), surfaceDim = Color(0xFFDED8E1),
-        surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF8F1FA), surfaceContainer = Color(0xFFF2ECF4),
-        surfaceContainerHigh = Color(0xFFECE6EE), surfaceContainerHighest = Color(0xFFE6E0E9),
-        inverseSurface = Color(0xFF322F35), inverseOnSurface = Color(0xFFF5EFF7),
-        error = Color(0xFFB3261E), onError = Color.White, errorContainer = Color(0xFFFFDAD6), onErrorContainer = Color(0xFF93000A),
-        outline = Color(0xFF7A757F), outlineVariant = Color(0xFFCAC4D0), scrim = Color.Black,
+        primary = Color.Black, onPrimary = Color(0xFFE2E2E2), primaryContainer = Color(0xFF3B3B3B), onPrimaryContainer = Color.White,
+        inversePrimary = Color.White,
+        secondary = Color(0xFF5E5E5E), onSecondary = Color.White, secondaryContainer = Color(0xFFD4D4D4), onSecondaryContainer = Color(0xFF1B1B1B),
+        tertiary = Color(0xFF3B3B3B), onTertiary = Color(0xFFE2E2E2), tertiaryContainer = Color(0xFF747474), onTertiaryContainer = Color.White,
+        background = Color(0xFFF9F9F9), onBackground = Color(0xFF1B1B1B), surface = Color(0xFFF9F9F9), onSurface = Color(0xFF1B1B1B),
+        surfaceVariant = Color(0xFFE2E2E2), onSurfaceVariant = Color(0xFF474747), surfaceTint = Color.Black,
+        surfaceBright = Color(0xFFF9F9F9), surfaceDim = Color(0xFFDADADA),
+        surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF3F3F3), surfaceContainer = Color(0xFFEEEEEE),
+        surfaceContainerHigh = Color(0xFFE8E8E8), surfaceContainerHighest = Color(0xFFE2E2E2),
+        inverseSurface = Color(0xFF131313), inverseOnSurface = Color(0xFFE2E2E2),
+        outline = Color(0xFF777777), outlineVariant = Color(0xFFC6C6C6), scrim = Color.Black,
     )
 
     val Dark = darkColorScheme(
-        primary = Color(0xFFD0BCFF), onPrimary = Color(0xFF381E72), primaryContainer = Color(0xFF4F378B), onPrimaryContainer = Color(0xFFEADDFF),
-        inversePrimary = Color(0xFF6750A4),
-        secondary = Color(0xFFCCC2DC), onSecondary = Color(0xFF332D41), secondaryContainer = Color(0xFF4A4458), onSecondaryContainer = Color(0xFFE8DEF8),
-        tertiary = Color(0xFFFFB596), onTertiary = Color(0xFF55200A), tertiaryContainer = Color(0xFF723520), onTertiaryContainer = Color(0xFFFFDBCB),
-        background = Color(0xFF141218), onBackground = Color(0xFFE6E0E9), surface = Color(0xFF141218), onSurface = Color(0xFFE6E0E9),
-        surfaceVariant = Color(0xFF49454F), onSurfaceVariant = Color(0xFFCAC4D0), surfaceTint = Color(0xFFD0BCFF),
-        surfaceBright = Color(0xFF3B383E), surfaceDim = Color(0xFF141218),
-        surfaceContainerLowest = Color(0xFF0F0D13), surfaceContainerLow = Color(0xFF1D1B20), surfaceContainer = Color(0xFF211F26),
-        surfaceContainerHigh = Color(0xFF2B2930), surfaceContainerHighest = Color(0xFF36343B),
-        inverseSurface = Color(0xFFE6E0E9), inverseOnSurface = Color(0xFF322F35),
-        error = Color(0xFFFFB4AB), onError = Color(0xFF690005), errorContainer = Color(0xFF93000A), onErrorContainer = Color(0xFFFFDAD6),
-        outline = Color(0xFF938F99), outlineVariant = Color(0xFF49454F), scrim = Color.Black,
+        primary = Color.White, onPrimary = Color(0xFF1B1B1B), primaryContainer = Color(0xFFD4D4D4), onPrimaryContainer = Color.Black,
+        inversePrimary = Color.Black,
+        secondary = Color(0xFFC6C6C6), onSecondary = Color(0xFF1B1B1B), secondaryContainer = Color(0xFF474747), onSecondaryContainer = Color(0xFFE2E2E2),
+        tertiary = Color(0xFFE2E2E2), onTertiary = Color(0xFF1B1B1B), tertiaryContainer = Color(0xFF919191), onTertiaryContainer = Color.Black,
+        background = Color(0xFF131313), onBackground = Color(0xFFE2E2E2), surface = Color(0xFF131313), onSurface = Color(0xFFE2E2E2),
+        surfaceVariant = Color(0xFF474747), onSurfaceVariant = Color(0xFFC6C6C6), surfaceTint = Color.White,
+        surfaceBright = Color(0xFF393939), surfaceDim = Color(0xFF131313),
+        surfaceContainerLowest = Color(0xFF0E0E0E), surfaceContainerLow = Color(0xFF1B1B1B), surfaceContainer = Color(0xFF1F1F1F),
+        surfaceContainerHigh = Color(0xFF2A2A2A), surfaceContainerHighest = Color(0xFF353535),
+        inverseSurface = Color(0xFFF9F9F9), inverseOnSurface = Color(0xFF1B1B1B),
+        outline = Color(0xFF919191), outlineVariant = Color(0xFF474747), scrim = Color.Black,
     )
 }
 
@@ -106,7 +108,7 @@ private val TasksShapes = Shapes(
 )
 
 @Composable
-fun TasksTheme(mode: ThemeMode = ThemeMode.SYSTEM, wallpaperColors: Boolean = true, content: @Composable () -> Unit) {
+fun TasksTheme(mode: ThemeMode = ThemeMode.SYSTEM, wallpaperColors: Boolean = false, content: @Composable () -> Unit) {
     val dark = when (mode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false

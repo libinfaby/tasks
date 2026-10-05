@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity() {
         handle(intent)
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
-            TasksTheme(settings?.theme ?: ThemeMode.SYSTEM, settings?.wallpaperColors ?: true) {
+            TasksTheme(settings?.theme ?: ThemeMode.SYSTEM, settings?.wallpaperColors ?: false) {
                 // Reminders are the point of the app, so ask once the user is signed in
                 LaunchedEffect(settings?.signedIn) {
                     if (settings?.signedIn == true && !Notifications.canPost(this@MainActivity)) {

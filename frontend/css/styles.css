@@ -1,6 +1,6 @@
 /* ============================================================
    Tasks — Design System
-   Modern neutral theme (zinc scale, single indigo accent), light + dark.
+   Monochrome theme (Android's monochrome Material You palette), light + dark.
    Token values are mirrored by the Android app — see css/tokens.md.
    ============================================================ */
 
@@ -9,34 +9,35 @@
   color-scheme: light;
 
   /* Surfaces */
-  --bg-primary:     #ffffff;   /* app background */
-  --bg-secondary:   #fafafa;   /* sidebar, modal footer, subtle panels */
-  --bg-tertiary:    #f4f4f5;   /* muted fills: chips, progress track */
+  --bg-primary:     #f9f9f9;   /* app background */
+  --bg-secondary:   #f3f3f3;   /* sidebar, modal footer, subtle panels */
+  --bg-tertiary:    #eeeeee;   /* muted fills: chips, progress track */
   --bg-card:        #ffffff;   /* list containers, cards */
-  --bg-card-hover:  #fafafa;
+  --bg-card-hover:  #f3f3f3;
   --bg-input:       #ffffff;
-  --bg-hover:       rgba(24, 24, 27, 0.05);
-  --bg-active:      rgba(24, 24, 27, 0.08);
-  --overlay:        rgba(9, 9, 11, 0.4);
-  --chip-edge:      rgba(9, 9, 11, 0.10);
+  --bg-hover:       rgba(27, 27, 27, 0.05);
+  --bg-active:      rgba(27, 27, 27, 0.08);
+  --overlay:        rgba(0, 0, 0, 0.4);
+  --chip-edge:      rgba(0, 0, 0, 0.10);
 
   /* Borders */
-  --border-color:       #e4e4e7;
-  --border-color-hover: #d4d4d8;
-  --border-color-focus: #5b5bd6;
+  --border-color:       #e2e2e2;
+  --border-color-hover: #c6c6c6;
+  --border-color-focus: #000000;
 
   /* Text */
-  --text-primary:   #18181b;
-  --text-secondary: #52525b;
-  --text-tertiary:  #71717a;
+  --text-primary:   #1b1b1b;
+  --text-secondary: #474747;
+  --text-tertiary:  #777777;
   --text-inverse:   #ffffff;
 
-  /* Accent (indigo) */
-  --accent:       #5b5bd6;
-  --accent-hover: #4f4fc4;
-  --accent-text:  #4c4bbd;
-  --accent-soft:  rgba(91, 91, 214, 0.10);
-  --accent-glow:  rgba(91, 91, 214, 0.22);  /* focus ring */
+  /* Accent (monochrome) */
+  --accent:       #000000;
+  --accent-hover: #3b3b3b;
+  --accent-text:  #000000;
+  --on-accent:    #e2e2e2;
+  --accent-soft:  rgba(0, 0, 0, 0.08);
+  --accent-glow:  rgba(0, 0, 0, 0.18);  /* focus ring */
 
   /* Semantic */
   --priority-urgent:    #e5484d;
@@ -93,25 +94,27 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg-primary:     #111113;
-    --bg-secondary:   #0c0c0e;
-    --bg-tertiary:    #222226;
-    --bg-card:        #18181b;
-    --bg-card-hover:  #1d1d21;
-    --bg-input:       #18181b;
+    --bg-primary:     #131313;
+    --bg-secondary:   #0e0e0e;
+    --bg-tertiary:    #2a2a2a;
+    --bg-card:        #1b1b1b;
+    --bg-card-hover:  #1f1f1f;
+    --bg-input:       #1b1b1b;
     --bg-hover:       rgba(255, 255, 255, 0.05);
     --bg-active:      rgba(255, 255, 255, 0.08);
     --overlay:        rgba(0, 0, 0, 0.6);
     --chip-edge:      rgba(255, 255, 255, 0.10);
-    --border-color:       #27272a;
-    --border-color-hover: #3f3f46;
-    --text-primary:   #ededef;
-    --text-secondary: #a1a1aa;
-    --text-tertiary:  #7c7c85;
-    --accent-hover: #6e6ade;
-    --accent-text:  #a8a4ff;
-    --accent-soft:  rgba(110, 106, 222, 0.16);
-    --accent-glow:  rgba(110, 106, 222, 0.35);
+    --border-color:       #2a2a2a;
+    --border-color-hover: #474747;
+    --text-primary:   #e2e2e2;
+    --text-secondary: #c6c6c6;
+    --text-tertiary:  #919191;
+    --accent:       #ffffff;
+    --on-accent:    #1b1b1b;
+    --accent-hover: #d4d4d4;
+    --accent-text:  #ffffff;
+    --accent-soft:  rgba(255, 255, 255, 0.12);
+    --accent-glow:  rgba(255, 255, 255, 0.28);
     --priority-urgent:    #ff6369;
     --priority-urgent-bg: rgba(255, 99, 105, 0.14);
     --success:    #3dd68c;
@@ -128,25 +131,27 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg-primary:     #111113;
-  --bg-secondary:   #0c0c0e;
-  --bg-tertiary:    #222226;
-  --bg-card:        #18181b;
-  --bg-card-hover:  #1d1d21;
-  --bg-input:       #18181b;
+  --bg-primary:     #131313;
+  --bg-secondary:   #0e0e0e;
+  --bg-tertiary:    #2a2a2a;
+  --bg-card:        #1b1b1b;
+  --bg-card-hover:  #1f1f1f;
+  --bg-input:       #1b1b1b;
   --bg-hover:       rgba(255, 255, 255, 0.05);
   --bg-active:      rgba(255, 255, 255, 0.08);
   --overlay:        rgba(0, 0, 0, 0.6);
   --chip-edge:      rgba(255, 255, 255, 0.10);
-  --border-color:       #27272a;
-  --border-color-hover: #3f3f46;
-  --text-primary:   #ededef;
-  --text-secondary: #a1a1aa;
-  --text-tertiary:  #7c7c85;
-  --accent-hover: #6e6ade;
-  --accent-text:  #a8a4ff;
-  --accent-soft:  rgba(110, 106, 222, 0.16);
-  --accent-glow:  rgba(110, 106, 222, 0.35);
+  --border-color:       #2a2a2a;
+  --border-color-hover: #474747;
+  --text-primary:   #e2e2e2;
+  --text-secondary: #c6c6c6;
+  --text-tertiary:  #919191;
+  --accent:       #ffffff;
+  --on-accent:    #1b1b1b;
+  --accent-hover: #d4d4d4;
+  --accent-text:  #ffffff;
+  --accent-soft:  rgba(255, 255, 255, 0.12);
+  --accent-glow:  rgba(255, 255, 255, 0.28);
   --priority-urgent:    #ff6369;
   --priority-urgent-bg: rgba(255, 99, 105, 0.14);
   --success:    #3dd68c;
@@ -279,7 +284,7 @@ button:focus:not(:focus-visible) { outline: none; }
   width: 28px; height: 28px;
   border-radius: var(--radius-md);
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -648,7 +653,7 @@ button:focus:not(:focus-visible) { outline: none; }
   content: '';
   width: 4px;
   height: 8px;
-  border: solid #ffffff;
+  border: solid var(--on-accent);
   border-width: 0 2px 2px 0;
   transform: translateY(-1px) rotate(45deg);
   opacity: 0;
@@ -723,7 +728,7 @@ button:focus:not(:focus-visible) { outline: none; }
   height: 52px;
   border-radius: 16px;
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
   place-items: center;
   box-shadow: var(--shadow-lg);
   z-index: 90;
@@ -879,7 +884,7 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
 .btn:disabled { opacity: 0.6; cursor: default; }
 .btn .icon { width: 15px; height: 15px; }
 
-.btn-primary { background: var(--accent); color: #ffffff; box-shadow: var(--shadow-sm); }
+.btn-primary { background: var(--accent); color: var(--on-accent); box-shadow: var(--shadow-sm); }
 .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
 
 .btn-secondary { background: var(--bg-card); border-color: var(--border-color-hover); color: var(--text-primary); box-shadow: var(--shadow-sm); }

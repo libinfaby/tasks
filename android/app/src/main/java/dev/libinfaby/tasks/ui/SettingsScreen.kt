@@ -97,7 +97,7 @@ fun SettingsScreen(
             ConnectedItem(0, 1, onClick = { onWallpaperColors(!settings.wallpaperColors) }) {
                 ListRow(
                     "Wallpaper colours",
-                    supporting = if (settings.wallpaperColors) "Colours follow your wallpaper" else "Using the Grape palette",
+                    supporting = if (settings.wallpaperColors) "Colours follow your wallpaper" else "Using the monochrome palette",
                     icon = TasksIcons.Palette,
                     iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
                     iconContent = MaterialTheme.colorScheme.onTertiaryContainer,

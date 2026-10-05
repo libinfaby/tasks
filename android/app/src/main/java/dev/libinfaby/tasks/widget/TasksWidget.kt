@@ -182,7 +182,7 @@ class TasksWidget : GlanceAppWidget() {
     }
 }
 
-/** The app's Grape scheme as day/night pairs; the widget follows the phone's theme. */
+/** The app's monochrome scheme as day/night pairs; the widget follows the phone's theme. */
 private object WidgetColors {
     private val L = TasksColors.Light
     private val D = TasksColors.Dark

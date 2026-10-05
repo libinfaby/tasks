@@ -5,21 +5,25 @@ Source of truth: the `:root` blocks in `styles.css`. The Android app mirrors the
 
 ## Colour
 
+Monochrome, taken from Android's monochrome Material You preset (the app's `TasksColors`). Surfaces map to
+M3 roles: background → `--bg-primary`, surface container lowest/low → cards/sidebar, outline variant → input borders.
+
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--bg-primary` | `#ffffff` | `#111113` | App background |
-| `--bg-secondary` | `#fafafa` | `#0c0c0e` | Sidebar, modal footer |
-| `--bg-tertiary` | `#f4f4f5` | `#222226` | Muted fills, progress track |
-| `--bg-card` | `#ffffff` | `#18181b` | Lists, cards, inputs |
-| `--bg-card-hover` | `#fafafa` | `#1d1d21` | Row hover |
-| `--border-color` | `#e4e4e7` | `#27272a` | Hairlines, card borders |
-| `--border-color-hover` | `#d4d4d8` | `#3f3f46` | Input borders |
-| `--text-primary` | `#18181b` | `#ededef` | Body text |
-| `--text-secondary` | `#52525b` | `#a1a1aa` | Supporting text |
-| `--text-tertiary` | `#71717a` | `#7c7c85` | Meta, placeholders |
-| `--accent` | `#5b5bd6` | `#5b5bd6` | Primary buttons, checked state |
-| `--accent-hover` | `#4f4fc4` | `#6e6ade` | |
-| `--accent-text` | `#4c4bbd` | `#a8a4ff` | Accent-coloured text (Today, links) |
+| `--bg-primary` | `#f9f9f9` | `#131313` | App background |
+| `--bg-secondary` | `#f3f3f3` | `#0e0e0e` | Sidebar, modal footer |
+| `--bg-tertiary` | `#eeeeee` | `#2a2a2a` | Muted fills, progress track |
+| `--bg-card` | `#ffffff` | `#1b1b1b` | Lists, cards, inputs |
+| `--bg-card-hover` | `#f3f3f3` | `#1f1f1f` | Row hover |
+| `--border-color` | `#e2e2e2` | `#2a2a2a` | Hairlines, card borders |
+| `--border-color-hover` | `#c6c6c6` | `#474747` | Input borders |
+| `--text-primary` | `#1b1b1b` | `#e2e2e2` | Body text |
+| `--text-secondary` | `#474747` | `#c6c6c6` | Supporting text |
+| `--text-tertiary` | `#777777` | `#919191` | Meta, placeholders |
+| `--accent` | `#000000` | `#ffffff` | Primary buttons, checked state |
+| `--accent-hover` | `#3b3b3b` | `#d4d4d4` | |
+| `--accent-text` | `#000000` | `#ffffff` | Accent-coloured text (Today, links) |
+| `--on-accent` | `#e2e2e2` | `#1b1b1b` | Text, icons and ticks on accent fills |
 | `--priority-urgent` | `#e5484d` | `#ff6369` | Urgent flag + checkbox ring |
 | `--success` | `#30a46c` | `#3dd68c` | |
 | `--danger` | `#e5484d` | `#ff6369` | Destructive actions, overdue |

@@ -28,7 +28,7 @@ data class Settings(
     val token: String? = null,
     val apiUrl: String = BuildConfig.API_BASE_URL,
     val theme: ThemeMode = ThemeMode.SYSTEM,
-    val wallpaperColors: Boolean = true,
+    val wallpaperColors: Boolean = false,
     val lastSyncAt: Long = 0,
 ) {
     val signedIn get() = token != null
@@ -51,7 +51,7 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
             token = p[Keys.token]?.let { TokenCipher.decrypt(it) },
             apiUrl = p[Keys.apiUrl] ?: BuildConfig.API_BASE_URL,
             theme = p[Keys.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
-            wallpaperColors = p[Keys.wallpaperColors] ?: true,
+            wallpaperColors = p[Keys.wallpaperColors] ?: false,
             lastSyncAt = p[Keys.lastSync] ?: 0,
         )
     }
