@@ -5,7 +5,7 @@
 import { api } from '../api.js';
 import { createElement as h, setChildren, showSnackbar, showToast, todayStr, addDays, dateLabel, longLabel } from '../utils.js';
 import { icon } from '../icons.js';
-import { citem, confirmDialog, emptyState, nameDialog, scallop, sectionHeader, spinner, toggleGroup } from '../ui.js';
+import { citem, confirmDialog, emptyState, nameDialog, sectionHeader, spinner, toggleGroup } from '../ui.js';
 
 const bullets = (entries) => entries.map(e => `• ${e.text}`).join('\n');
 
@@ -125,7 +125,7 @@ export function createDailyPage() {
   function entryRows(entries) {
     return h('div', { className: 'connected' }, ...entries.map(e => citem(
       h('div', { className: 'entry-row' },
-        h('span', { className: 'entry-dot' }, scallop()),
+        h('span', { className: 'entry-dot' }),
         h('span', { className: 'entry-text' }, e.text),
         h('button', {
           type: 'button', className: 'icon-btn interactive', 'aria-label': 'Delete entry',

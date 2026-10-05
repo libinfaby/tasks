@@ -1,5 +1,6 @@
 package dev.libinfaby.tasks.ui.tasks
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -334,11 +336,13 @@ private fun SearchPill(
     onClose: () -> Unit,
     onOpenMenu: () -> Unit,
 ) {
+    var focused by remember { mutableStateOf(false) }
+    val color by animateColorAsState(if (focused) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerHigh, label = "searchPill")
     Surface(
         shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = color,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth().height(56.dp),
+        modifier = Modifier.fillMaxWidth().height(56.dp).onFocusChanged { focused = it.hasFocus },
     ) {
         if (searching) {
             SearchField(search, tagTypes, onChange, onClose)

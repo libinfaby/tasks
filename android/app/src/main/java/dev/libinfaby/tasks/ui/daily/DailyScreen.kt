@@ -1,6 +1,7 @@
 package dev.libinfaby.tasks.ui.daily
 
 import android.content.ClipData
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -44,6 +46,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
@@ -64,7 +67,6 @@ import dev.libinfaby.tasks.ui.components.ConnectedItem
 import dev.libinfaby.tasks.ui.components.ConnectedToggleGroup
 import dev.libinfaby.tasks.ui.components.DatePickerDialogFor
 import dev.libinfaby.tasks.ui.components.EmptyState
-import dev.libinfaby.tasks.ui.components.Scallop
 import dev.libinfaby.tasks.ui.components.SectionHeader
 import dev.libinfaby.tasks.ui.components.ToggleColors
 import dev.libinfaby.tasks.ui.tasks.NameDialog
@@ -264,7 +266,9 @@ private fun RangeBar(state: DailyState, onPick: (String) -> Unit, onRange: (Loca
 private fun AddRow(onAdd: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
     val submit = { if (text.isNotBlank()) { onAdd(text.trim()); text = "" } }
-    Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+    var focused by remember { mutableStateOf(false) }
+    val color by animateColorAsState(if (focused) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerHigh, label = "addRow")
+    Surface(shape = RoundedCornerShape(28.dp), color = color, modifier = Modifier.fillMaxWidth().padding(top = 12.dp).onFocusChanged { focused = it.hasFocus }) {
         Row(Modifier.padding(start = 20.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) {
                 if (text.isEmpty()) Text("What did you get done?", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -289,7 +293,7 @@ private fun LazyListScope.entries(entries: List<DailyLogDto>, keyPrefix: String,
         item(key = "$keyPrefix-${e.id}") {
             ConnectedItem(i, entries.size, modifier = Modifier.padding(bottom = 3.dp).animateItem(), onClick = { onEdit(e) }) {
                 Row(Modifier.padding(start = 18.dp, end = 4.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(10.dp).background(MaterialTheme.colorScheme.primary, Scallop))
+                    Box(Modifier.size(10.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
                     Spacer(Modifier.width(14.dp))
                     Text(e.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(vertical = 10.dp))
                     IconButton(onClick = { onDelete(e) }) { Icon(TasksIcons.Delete, "Delete entry", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp)) }

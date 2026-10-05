@@ -54,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
@@ -528,10 +529,15 @@ private fun TagOption(name: String, colors: ToggleColors, selected: Boolean, onC
 @Composable
 private fun SubtaskEditor(rows: List<SubtaskRow>, tagTypes: List<TagTypeDto>, vm: TaskEditorViewModel) {
     var tagging by remember { mutableStateOf<Long?>(null) }
+    var focusedKey by remember { mutableStateOf<Long?>(null) }
     val count = rows.size + 1
     ConnectedColumn {
         rows.forEachIndexed { i, row ->
-            ConnectedItem(i, count) {
+            ConnectedItem(
+                i, count,
+                modifier = Modifier.onFocusChanged { if (it.hasFocus) focusedKey = row.key else if (focusedKey == row.key) focusedKey = null },
+                color = if (focusedKey == row.key) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainer,
+            ) {
                 Column {
                     Row(Modifier.padding(start = 18.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
