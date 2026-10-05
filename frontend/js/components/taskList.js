@@ -1,226 +1,444 @@
 // ============================================================
-// Tasks — Task List Component
+// Tasks — Task list page (All tasks, Today, Upcoming, a group)
+// Same views, sections and cards as the Android TaskListScreen.
 // ============================================================
+
 import { api } from '../api.js';
-import {
-  createElement, showToast, formatDate, isOverdue, isToday,
-  getChipStyle, getPriorityLabel, getPriorityClass, formatReminder, REPEAT_LABELS,
+import { createElement as h, setChildren, debounce, showSnackbar, showToast, todayStr, addDays, dateLabel, dayLabel, fullLabel,
+  formatReminder, isOverdue, isToday, tonal, REPEAT_LABELS,
 } from '../utils.js';
-import { TaskForm } from './taskForm.js';
-import { toDateStr } from './dailyLog.js';
 import { icon } from '../icons.js';
+import { chip, emptyState, fab, scallop, sectionHeader, spinner, topBar } from '../ui.js';
+import { store } from '../store.js';
 
-const TAG_TYPE_ORDER = ['client', 'project', 'via'];
-// Tags named like this render as a colored strip on the card's left edge instead of a chip
+const TITLES = { all: 'All tasks', today: 'Today', upcoming: 'Upcoming' };
+// Tags named like this are the task's kind; they sort right after the client
 const KIND_TAG_NAMES = ['issue', 'requirement', 'modification'];
-const isKindTag = (tag) => KIND_TAG_NAMES.includes((tag.name || '').trim().toLowerCase());
+// These types read as just the tag's name; other types keep a "Type" label
+const NAME_ONLY_TYPES = ['client', 'project', 'via'];
+const TAG_ORDER = ['client', 'kind', 'project', 'via'];
+// How long a task ticked off stays (shown done) so the animation plays before it leaves
+const LINGER_MS = 1200;
 
-export class TaskList {
-  constructor({ onRefreshSidebar }) { this.tasks = []; this.filters = {}; this.view = 'all'; this.groupFilter = null; this.searchQuery = ''; this.taskForm = null; this.onRefreshSidebar = onRefreshSidebar; }
-  setView(view) { this.view = view; this.groupFilter = null; this.filters = this._getFiltersForView(view); }
-  setGroupFilter(group) { this.view = 'group'; this.groupFilter = group; this.filters = { group_id: group.id, completed: 'false' }; }
-  setSearch(query, type = 'task', tagTypeId = null) {
-    this.searchQuery = query;
-    if (query) { this.filters.search = query; this.filters.search_type = type; if (tagTypeId) this.filters.search_tag_type = tagTypeId; else delete this.filters.search_tag_type; }
-    else { delete this.filters.search; delete this.filters.search_type; delete this.filters.search_tag_type; }
-  }
-  setTagFilter(tagId) { if (tagId) this.filters.tag_id = tagId; else delete this.filters.tag_id; const dd = document.getElementById('tag-filter'); if (dd) dd.value = tagId || ''; }
-  _getFiltersForView(view) {
-    const today = new Date().toISOString().split('T')[0]; const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
-    // Only active tasks by default; completed ones are shown via the Completed view or chip
-    switch (view) { case 'today': return { date_from: today, date_to: today, completed: 'false' }; case 'upcoming': return { date_from: today, date_to: nextWeek, completed: 'false' }; case 'priority': return { completed: 'false' }; case 'completed': return { completed: 'true' }; default: return { completed: 'false' }; }
-  }
-  async loadTasks() { try { const data = await api.getTasks(this.filters); this.tasks = data.tasks || []; if (this.view === 'priority') this.tasks = this.tasks.filter(t => t.priority > 0); } catch (err) { showToast(err.message, 'error'); this.tasks = []; } }
-  getViewTitle() { switch (this.view) { case 'all': return 'All Tasks'; case 'today': return 'Today'; case 'upcoming': return 'Upcoming'; case 'priority': return 'Urgent'; case 'completed': return 'Completed'; case 'group': return this.groupFilter?.name || 'Group'; default: return 'Tasks'; } }
-  render(container) {
-    container.innerHTML = '';
-    const fb = createElement('div', { className: 'filter-bar' },
-      this._filterChip('All', this.view === 'all' && !this.groupFilter, () => { this.setView('all'); this.refresh(container); }),
-      this._filterChip('Completed', this.filters.completed === 'true', () => { this.filters.completed = this.filters.completed === 'true' ? 'false' : 'true'; this.refresh(container); }),
-      this._filterChip('Urgent', this.filters.priority === '2', () => { this.filters.priority = this.filters.priority === '2' ? '' : '2'; this.refresh(container); }),
-      ...(this.filters.tag_id ? [this._filterChip('Tag filter', true, () => { this.setTagFilter(''); this.refresh(container); }, icon('x', { size: 13 }))] : [])
-    );
-    container.appendChild(fb); const body = createElement('div', { className: 'content-body', id: 'task-list-body' }); container.appendChild(body); this._renderTaskList(body);
-  }
-  _renderTaskList(body) {
-    body.innerHTML = '';
-    const count = document.getElementById('view-count'); if (count) count.textContent = String(this.tasks.length);
-    if (this.tasks.length === 0) { body.appendChild(this._renderEmptyState()); return; }
-    if (this.view === 'all' && !this.groupFilter) {
-      const g = this._groupTasksByGroup();
-      if (g.priority.length > 0) body.appendChild(this._renderSection('Urgent', g.priority, { color: 'var(--priority-urgent)' }));
-      if (g.ungrouped.length > 0) body.appendChild(this._renderSection('Tasks', g.ungrouped, { color: 'var(--accent)' }));
-      Object.entries(g.groups).forEach(([id, { group, tasks }]) => { body.appendChild(this._renderSection(group.name, tasks, group)); });
-    } else { body.appendChild(createElement('div', { className: 'task-list' }, ...this.tasks.map((t, i) => this._renderTaskCard(t, i)))); }
-  }
-  _groupTasksByGroup() {
-    const res = { priority: [], ungrouped: [], groups: {} };
-    this.tasks.forEach(t => {
-      if (t.priority > 0 && !t.is_completed) res.priority.push(t);
-      if (t.group_id && t.group) { if (!res.groups[t.group_id]) res.groups[t.group_id] = { group: t.group, tasks: [] }; res.groups[t.group_id].tasks.push(t); }
-      else if (t.priority === 0 || t.is_completed) res.ungrouped.push(t);
-    });
-    return res;
-  }
-  _renderSection(title, tasks, group) {
-    const color = group?.color || 'var(--accent)';
-    return createElement('div', { className: 'task-group-section' },
-      createElement('div', { className: 'task-group-header' },
-        createElement('span', { className: 'group-indicator', style: { background: color } }),
-        createElement('h3', {}, title),
-        createElement('span', { className: 'group-count' }, String(tasks.length))
-      ),
-      createElement('div', { className: 'task-list' }, ...tasks.map((t, i) => this._renderTaskCard(t, i)))
-    );
+const isKind = (tag) => KIND_TAG_NAMES.includes((tag.name || '').trim().toLowerCase());
+const tagRank = (tag) => {
+  const i = TAG_ORDER.indexOf(isKind(tag) ? 'kind' : (tag.type_name || '').toLowerCase());
+  return i === -1 ? TAG_ORDER.length : i;
+};
+
+export function createTaskListPage({ view, group = null, nav }) {
+  const root = view !== 'group';
+  const state = {
+    filters: { completed: false, urgent: false, tagId: null, tagName: null },
+    search: { text: '', type: 'task', tagTypeId: null },
+    searching: false,
+    tasks: [],
+    loading: true,
+    error: null,
+    held: new Set(), // ticked off a moment ago: keeps its place until it leaves
+  };
+  let loadSeq = 0;
+
+  const scroller = h('div', { className: 'page-scroll' });
+  const inner = h('div', { className: 'page-inner' });
+  const searchSlot = h('div');
+  const header = h('div', { className: 'title-header' });
+  const filterBar = h('div', { className: 'filter-bar' });
+  const body = h('div');
+  if (root) inner.append(searchSlot, header);
+  inner.append(filterBar, body);
+  if (!root) scroller.append(topBar(group.name, nav.back));
+  scroller.append(inner);
+  const el = h('div', { className: `page${root ? ' root' : ''}` }, scroller, fab('New task', 'add', nav.newTask, scroller));
+
+  // ==================== Data ====================
+
+  const needsServerView = () => state.filters.completed || !!state.search.text.trim();
+
+  /** Same filters the Android app uses: Today carries anything overdue, unless searching or showing done. */
+  function query() {
+    const q = { completed: String(state.filters.completed) };
+    const today = todayStr();
+    const server = needsServerView();
+    if (view === 'today') { if (server) q.date_from = today; q.date_to = today; }
+    if (view === 'upcoming') { q.date_from = addDays(today, 1); q.date_to = addDays(today, 7); }
+    if (view === 'group') q.group_id = group.id;
+    if (state.filters.tagId) q.tag_id = state.filters.tagId;
+    const text = state.search.text.trim();
+    if (text) {
+      q.search = text;
+      q.search_type = state.search.type;
+      if (state.search.tagTypeId) q.search_tag_type = state.search.tagTypeId;
+    }
+    return q;
   }
 
-  _renderTaskCard(task, index = 0) {
-    const card = createElement('div', {
-      className: `task-card${task.priority > 0 ? ' urgent' : ''}${task.is_completed ? ' completed' : ''}`,
-      onClick: (e) => { if (e.target.closest('.task-checkbox') || e.target.closest('.task-action-btn') || e.target.closest('.selected-tag-clickable')) return; this._editTask(task); },
+  async function load({ quiet = false } = {}) {
+    const seq = ++loadSeq;
+    if (!quiet) { state.loading = true; render(); }
+    try {
+      let tasks = (await api.getTasks(query())).tasks || [];
+      if (state.filters.urgent) tasks = tasks.filter(t => t.priority > 0);
+      if (seq !== loadSeq) return;
+      // A task still lingering after being ticked off keeps its place, shown done
+      const lingering = state.tasks.filter(t => state.held.has(t.id) && !tasks.some(n => n.id === t.id));
+      state.tasks = [...tasks, ...lingering];
+      state.error = null;
+    } catch (err) {
+      if (seq !== loadSeq) return;
+      state.error = err.message;
+    }
+    state.loading = false;
+    render();
+  }
+
+  /**
+   * All: Urgent / Tasks / one section per group. Today: Overdue first, then the same split.
+   * Upcoming: one section per day. Groups, searches and done tasks are flat.
+   */
+  function sections() {
+    const tasks = state.tasks;
+    const settledDone = (t) => t.is_completed && !state.held.has(t.id);
+    const split = (ts) => {
+      const urgent = ts.filter(t => t.priority > 0 && !settledDone(t));
+      const ungrouped = ts.filter(t => !t.group && (t.priority === 0 || settledDone(t)));
+      const groups = new Map();
+      // As before, a grouped urgent task shows under Urgent and under its group
+      ts.filter(t => t.group).forEach(t => {
+        if (!groups.has(t.group.id)) groups.set(t.group.id, { title: t.group.name, kind: 'group', group: t.group, tasks: [] });
+        groups.get(t.group.id).tasks.push(t);
+      });
+      return [
+        ...(urgent.length ? [{ title: 'Urgent', kind: 'urgent', tasks: urgent }] : []),
+        ...(ungrouped.length ? [{ title: 'Tasks', kind: 'tasks', tasks: ungrouped }] : []),
+        ...groups.values(),
+      ];
+    };
+    if (!tasks.length) return [];
+    if (needsServerView() || view === 'group') return [{ title: '', kind: 'plain', tasks }];
+    if (view === 'today') {
+      const today = todayStr();
+      const overdue = tasks.filter(t => t.date && t.date.slice(0, 10) < today);
+      const rest = tasks.filter(t => !overdue.includes(t));
+      return [...(overdue.length ? [{ title: 'Overdue', kind: 'overdue', tasks: overdue }] : []), ...split(rest)];
+    }
+    if (view === 'upcoming') {
+      const byDay = new Map();
+      [...tasks].sort((a, b) => a.date.localeCompare(b.date)).forEach(t => {
+        const day = t.date.slice(0, 10);
+        if (!byDay.has(day)) byDay.set(day, { title: dayLabel(day), kind: 'day', tasks: [] });
+        byDay.get(day).tasks.push(t);
+      });
+      return [...byDay.values()];
+    }
+    return split(tasks);
+  }
+
+  // ==================== Rendering ====================
+
+  function render() {
+    if (root) renderSearch();
+    renderHeader();
+    renderFilters();
+    if (state.loading) return setChildren(body, spinner());
+    if (state.error) {
+      return setChildren(body, h('div', { className: 'empty-state' },
+        emptyState('refresh', "Couldn't load tasks", state.error),
+        h('button', { type: 'button', className: 'btn btn-tonal interactive', onClick: () => load() }, 'Try again')));
+    }
+    const secs = sections();
+    if (!secs.length) return setChildren(body, emptyFor());
+    setChildren(body, ...secs.flatMap(sec => [sectionTitle(sec), taskListFor(sec)]));
+  }
+
+  function renderHeader() {
+    if (!root) return;
+    const count = state.tasks.filter(t => !(t.is_completed && !state.held.has(t.id))).length;
+    const sub = view === 'today' ? `${fullLabel(todayStr())} · ${count} open`
+      : view === 'upcoming' ? `Next 7 days · ${count} open`
+        : `${count} open`;
+    setChildren(header,
+      h('h1', { className: 'display-small' }, TITLES[view]),
+      h('p', { className: 'subtitle body-medium muted', style: { visibility: state.loading ? 'hidden' : 'visible' } }, sub),
+    );
+  }
+
+  function renderFilters() {
+    const f = state.filters;
+    const any = f.completed || f.urgent || f.tagId;
+    const pill = (label, selected, onClick, { iconName = null, iconClass = '', clearable = false } = {}) => h('button', {
+      type: 'button',
+      className: `filter-chip interactive${selected ? ' selected' : ''}${clearable ? ' clearable' : ''}`,
+      'aria-pressed': String(selected),
+      onClick,
     },
-      createElement('label', { className: 'task-checkbox', title: task.is_completed ? 'Mark as not done' : 'Mark as done', onClick: (e) => e.stopPropagation() },
-        createElement('input', { type: 'checkbox', 'aria-label': `Complete ${task.title}`, ...(task.is_completed ? { checked: 'true' } : {}), onChange: () => this._toggleTask(task) }),
-        createElement('span', { className: 'checkmark' })
-      ),
-      createElement('div', { className: 'task-card-body' },
-        createElement('div', { className: 'task-title-row' },
-          createElement('div', { className: 'task-title' }, task.title),
-          createElement('div', { className: 'task-card-actions' },
-            createElement('button', { className: 'task-action-btn', title: 'Edit', 'aria-label': 'Edit task', onClick: (e) => { e.stopPropagation(); this._editTask(task); } }, icon('pencil', { size: 15 })),
-            createElement('button', { className: 'task-action-btn delete', title: 'Delete', 'aria-label': 'Delete task', onClick: (e) => { e.stopPropagation(); this._deleteTask(task); } }, icon('trash', { size: 15 })),
-          )
-        ),
-        task.details ? createElement('div', { className: 'task-details' }, task.details) : null,
-        this._renderMeta(task),
-        (task.subtasks || []).length > 0 ? this._renderSubtasks(task) : null,
-      )
+      selected ? icon('check', { size: 18 }) : iconName ? icon(iconName, { size: 18, className: iconClass }) : null,
+      label,
+      clearable ? icon('close', { size: 18 }) : null,
     );
-    card.style.animationDelay = `${Math.min(index, 12) * 25}ms`;
+    setChildren(filterBar,
+      pill('All', !any, () => { state.filters = { completed: false, urgent: false, tagId: null, tagName: null }; load(); }),
+      pill('Urgent', f.urgent, () => { f.urgent = !f.urgent; load(); }, { iconName: 'fireFilled', iconClass: 'urgent-icon' }),
+      pill('Done', f.completed, () => { f.completed = !f.completed; load(); }, { iconName: 'taskAlt', iconClass: 'done-icon' }),
+      f.tagId ? pill(f.tagName || 'Tag', true, () => { f.tagId = null; f.tagName = null; load(); }, { clearable: true }) : null,
+    );
+  }
+
+  function sectionTitle(sec) {
+    if (!sec.title) return h('div', { style: { height: '16px' } });
+    const open = sec.tasks.filter(t => !t.is_completed).length;
+    const trailing = open === 0 ? 'All done' : `${open} left`;
+    switch (sec.kind) {
+      case 'overdue': return sectionHeader({ title: sec.title, icon: 'alarm', tile: 'error square', trailing });
+      case 'urgent': return sectionHeader({ title: sec.title, icon: 'fireFilled', tile: 'error square', trailing });
+      case 'day': return sectionHeader({ title: sec.title, icon: 'calendar', tile: 'primary square', trailing });
+      case 'group': {
+        // A group's header opens that group on its own
+        const t = tonal(sec.group.color);
+        return sectionHeader({
+          title: sec.title, icon: 'groupFilled', tile: `group-shape tile-tonal ${t.className}`, tileStyle: t.style, trailing,
+          onClick: () => nav.go({ name: 'group', group: sec.group }), label: `Open group ${sec.group.name}`,
+        });
+      }
+      default: return sectionHeader({ title: sec.title, icon: 'taskAlt', tile: 'secondary', trailing });
+    }
+  }
+
+  function taskListFor(sec) {
+    const showDate = sec.kind === 'day' ? false : view === 'today' ? sec.kind === 'overdue' : true;
+    const showGroup = sec.kind !== 'group' && view !== 'group';
+    return h('div', { className: 'connected tasks' }, ...sec.tasks.map(t => taskCard(t, { showDate, showGroup })));
+  }
+
+  function taskCard(task, { showDate, showGroup }) {
+    const done = !!task.is_completed;
+    // A div rather than a button, so the checkbox and chips inside can be real buttons
+    const card = h('div', {
+      className: `citem interactive task-card${done ? ' done' : ''}`,
+      role: 'button',
+      tabindex: '0',
+      'aria-label': `Open ${task.title}`,
+      onClick: () => nav.openTask(task),
+      onKeydown: (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); nav.openTask(task); } },
+    },
+      checkbox(task, done),
+      h('div', { className: 'task-body' },
+        h('div', { className: 'task-title' }, task.title),
+        task.details?.trim() ? h('div', { className: 'task-details' }, task.details.trim()) : null,
+        meta(task, { showDate, showGroup }),
+        task.subtasks?.length ? subtaskPreview(task.subtasks) : null,
+      ),
+    );
     return card;
   }
 
-  // Priority, group, date, reminder and tags on one wrapping line
-  _renderMeta(task) {
+  /** Round checkbox whose ring takes the priority colour; checking pops a filled scallop and a burst. */
+  function checkbox(task, done) {
+    const btn = h('button', {
+      type: 'button',
+      className: `task-check interactive${task.priority > 0 ? ' urgent' : ''}${done ? ' checked' : ''}`,
+      role: 'checkbox',
+      'aria-checked': String(done),
+      'aria-label': done ? `Mark ${task.title} not done` : `Complete ${task.title}`,
+    },
+      h('span', { className: 'ring' }),
+      h('span', { className: 'scallop' }, scallop(), icon('check', { size: 20 })),
+    );
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggle(task, btn);
+    });
+    return btn;
+  }
+
+  function burst(btn) {
+    const b = h('span', { className: 'burst' });
+    const colors = ['var(--primary)', 'var(--error)', 'var(--secondary)', 'var(--outline)'];
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 + Math.random() * 0.4;
+      const d = 22 + Math.random() * 12;
+      b.appendChild(h('i', { style: { background: colors[i % colors.length], '--dx': `${Math.cos(a) * d}px`, '--dy': `${Math.sin(a) * d}px` } }));
+    }
+    btn.appendChild(b);
+    setTimeout(() => b.remove(), 800);
+  }
+
+  async function toggle(task, btn) {
+    const completing = !task.is_completed;
+    if (completing) {
+      state.held.add(task.id);
+      btn.classList.add('checked', 'popping');
+      btn.closest('.task-card')?.classList.add('done');
+      burst(btn);
+      navigator.vibrate?.(10);
+    }
+    try {
+      await api.toggleTask(task.id);
+      task.is_completed = completing ? 1 : 0;
+      if (completing) {
+        offerDailyLog(task);
+        setTimeout(() => { state.held.delete(task.id); load({ quiet: true }); store.loadGroups(); }, LINGER_MS);
+      } else {
+        load({ quiet: true });
+        store.loadGroups();
+      }
+    } catch (err) {
+      state.held.delete(task.id);
+      showToast(err.message);
+      render();
+    }
+  }
+
+  // Finishing a task offers to log it, without stopping the flow with a dialog
+  function offerDailyLog(task) {
+    const clients = (task.tags || []).filter(t => (t.type_name || '').toLowerCase() === 'client').map(t => t.name);
+    const entry = clients.length ? `${clients.join(', ')} - ${task.title}` : task.title;
+    showSnackbar('Done! Add it to your daily log?', {
+      dismissible: true,
+      duration: 6000,
+      action: {
+        label: 'Log it',
+        onClick: async () => {
+          try {
+            await api.createDailyLog({ date: todayStr(), text: entry });
+            showSnackbar("Added to today's daily log");
+          } catch (err) { showToast(err.message); }
+        },
+      },
+    });
+  }
+
+  function meta(task, { showDate, showGroup }) {
     const items = [];
-    if (task.priority > 0) {
-      items.push(createElement('span', { className: `priority-badge ${getPriorityClass(task.priority)}` }, icon('flag'), getPriorityLabel(task.priority)));
-    }
-    if (task.group && this.view !== 'group') {
-      items.push(createElement('span', { className: 'tag-chip group-tag', style: getChipStyle(task.group) }, task.group.name));
-    }
-    if (task.date) {
-      const dc = isOverdue(task.date) && !task.is_completed ? ' overdue' : (isToday(task.date) ? ' today' : '');
-      items.push(createElement('span', { className: `meta-item${dc}`, title: 'Date' }, icon('calendar'), formatDate(task.date)));
+    // Urgency is spelled out too, so it never rests on the ring colour alone
+    if (task.priority > 0) items.push(h('span', { className: 'meta-item urgent' }, icon('fireFilled', { size: 16 }), 'Urgent'));
+    if (task.date && showDate) {
+      const cls = isOverdue(task.date) && !task.is_completed ? ' overdue' : isToday(task.date) ? ' today' : '';
+      items.push(h('span', { className: `meta-item${cls}` }, icon('calendar', { size: 16 }), dateLabel(task.date)));
     }
     if (task.reminder) {
+      items.push(h('span', { className: 'meta-item' }, icon('alarm', { size: 16 }), formatReminder(task.reminder)));
       const repeat = REPEAT_LABELS[task.reminder_repeat];
-      items.push(createElement('span', { className: 'meta-item', title: repeat ? `Reminder, repeats ${repeat.toLowerCase()}` : 'Reminder' },
-        icon('bell'), formatReminder(task.reminder),
-        ...(repeat ? [icon('repeat'), repeat] : [])
-      ));
+      if (repeat) items.push(h('span', { className: 'meta-item' }, icon('repeat', { size: 16 }), repeat));
     }
-    const tags = this._renderTags(task.tags);
-    if (tags) items.push(tags);
-    if (items.length === 0) return null;
-    return createElement('div', { className: 'task-meta' }, ...items);
+    if (task.group && showGroup) {
+      items.push(h('span', { className: 'meta-item' }, h('span', { className: 'group-dot', style: { background: task.group.color } }), task.group.name));
+    }
+    [...(task.tags || [])].sort((a, b) => tagRank(a) - tagRank(b)).forEach(tag => {
+      const nameOnly = isKind(tag) || NAME_ONLY_TYPES.includes((tag.type_name || '').toLowerCase());
+      items.push(chip(tag.name, tag.color, {
+        fallback: tag.type_color,
+        label: nameOnly ? null : (tag.type_name || 'Tag'),
+        title: `Show only ${tag.name}`,
+        onClick: () => { state.filters.tagId = tag.id; state.filters.tagName = tag.name; load(); },
+      }));
+    });
+    return items.length ? h('div', { className: 'task-meta' }, ...items) : null;
   }
 
-  _renderTags(tags) {
-    if (!tags || tags.length === 0) return null;
-    // Client first, then the kind chip (Issue/Requirement/Modification), then Project, Via, then any other tag types
-    const ORDER = ['client', 'kind', 'project', 'via'];
-    const rank = (tag) => { const i = ORDER.indexOf(isKindTag(tag) ? 'kind' : (tag.type_name || '').toLowerCase()); return i === -1 ? ORDER.length : i; };
-    const sorted = [...tags].sort((a, b) => rank(a) - rank(b));
-    return createElement('div', { className: 'tag-list' },
-      ...sorted.map(tag => {
-        const kind = isKindTag(tag);
-        // Kind chips are pills but otherwise follow the tag's own colours and fill, like every other tag
-        const style = getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: tag.type_color, type_fg_color: tag.type_fg_color, type_has_bg: tag.type_has_bg });
-        return createElement('span', {
-          className: `tag-chip selected-tag-clickable${kind ? ' kind-chip' : ''}`,
-          style,
-          title: `Filter by ${tag.name}`,
-          onClick: (e) => { e.stopPropagation(); this.setTagFilter(tag.id); const b = document.getElementById('task-list-body'); if (b) this.refresh(b.parentElement); }
-        },
-          // Client, Project and Via tags read as just their name; other types keep the "Type:" label
-          ...(kind || TAG_TYPE_ORDER.includes((tag.type_name || '').toLowerCase())
-            ? [tag.name]
-            : [createElement('span', { className: 'tag-type-label' }, `${tag.type_name || 'Tag'}:`), ` ${tag.name}`])
-        );
-      })
-    );
-  }
-
-  _renderSubtasks(task) {
-    const subtasks = task.subtasks || []; const completed = subtasks.filter(s => s.is_completed).length; const total = subtasks.length; const pct = total > 0 ? (completed / total) * 100 : 0;
-    const container = createElement('div', { className: 'subtask-preview' },
-      createElement('div', { className: 'subtask-progress' },
-        createElement('div', { className: 'subtask-progress-bar' }, createElement('div', { className: 'subtask-progress-fill', style: { width: `${pct}%` } })),
-        createElement('span', { className: 'subtask-progress-text' }, `${completed}/${total}`)
-      )
-    );
-    subtasks.forEach(s => {
-      container.appendChild(createElement('div', { className: `subtask-item${s.is_completed ? ' completed' : ''}` },
-        createElement('label', { className: 'task-checkbox sm', onClick: (e) => e.stopPropagation() },
-          createElement('input', { type: 'checkbox', 'aria-label': `Complete ${s.title}`, ...(s.is_completed ? { checked: 'true' } : {}), onChange: () => this._toggleSubtask(s) }),
-          createElement('span', { className: 'checkmark' })
+  function subtaskPreview(subtasks) {
+    const done = subtasks.filter(s => s.is_completed).length;
+    const pct = (done / subtasks.length) * 100;
+    return h('div', { className: 'subtask-preview' },
+      h('div', { className: 'subtask-progress' },
+        h('div', { className: 'progress-track' },
+          done > 0 ? h('span', { className: 'fill', style: { flexBasis: `${pct}%` } }) : null,
+          done < subtasks.length ? h('span', { className: 'rest' }) : null,
         ),
-        createElement('span', { className: 'subtask-title' }, s.title)
-      ));
-    });
-    return container;
-  }
-  _filterChip(label, active, onClick, trailing = null) { return createElement('button', { className: `filter-chip${active ? ' active' : ''}`, 'aria-pressed': String(active), onClick }, label, trailing); }
-  _renderEmptyState() {
-    const searching = !!this.filters.search || !!this.filters.tag_id;
-    const msgs = {
-      all: ['inbox', 'No tasks', 'Create a task to get started.'],
-      today: ['calendarCheck', 'Nothing due today', 'Tasks dated today will show up here.'],
-      upcoming: ['clock', 'Nothing upcoming', 'Tasks dated in the next 7 days will show up here.'],
-      priority: ['flag', 'No urgent tasks', 'Urgent tasks will show up here.'],
-      completed: ['circleCheck', 'No completed tasks', 'Tasks you finish will show up here.'],
-    };
-    const [ic, title, text] = searching ? ['search', 'No matching tasks', 'Try a different search or clear the filter.'] : (msgs[this.view] || msgs.all);
-    return createElement('div', { className: 'empty-state' },
-      createElement('div', { className: 'empty-icon' }, icon(ic, { size: 20 })),
-      createElement('h3', {}, title),
-      createElement('p', {}, text)
+        h('span', { className: 'label-medium muted' }, `${done}/${subtasks.length}`),
+      ),
+      ...subtasks.map(s => {
+        const checked = !!s.is_completed;
+        return h('div', { className: `subtask-row${checked ? ' done' : ''}` },
+          h('button', {
+            type: 'button',
+            className: `sub-check interactive${checked ? ' checked' : ''}`,
+            role: 'checkbox',
+            'aria-checked': String(checked),
+            'aria-label': checked ? `Mark ${s.title} not done` : `Complete ${s.title}`,
+            onClick: async (e) => {
+              e.stopPropagation();
+              try { await api.toggleSubtask(s.id); load({ quiet: true }); } catch (err) { showToast(err.message); }
+            },
+          }, h('span', { className: 'box' }, checked ? icon('check', { size: 16 }) : null)),
+          h('span', { className: 'sub-text' }, s.title),
+        );
+      }),
     );
   }
-  async _toggleTask(t) {
-    try {
-      await api.toggleTask(t.id); t.is_completed = !t.is_completed;
-      const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } this.onRefreshSidebar?.();
-      const clients = (t.tags || []).filter(g => (g.type_name || '').toLowerCase() === 'client').map(g => g.name);
-      const text = clients.length ? `${clients.join(', ')} - ${t.title}` : t.title;
-      if (t.is_completed && await this._askAddToDaily(text)) {
-        await api.createDailyLog({ date: toDateStr(new Date()), text });
-        showToast('Added to Daily Tasks', 'success');
-      }
-    } catch (err) { showToast(err.message, 'error'); }
+
+  function emptyFor() {
+    const filtered = !!state.search.text.trim() || !!state.filters.tagId || state.filters.urgent;
+    if (filtered) return emptyState('search404', 'No matches', 'Try a different search, or clear the filter.');
+    if (state.filters.completed) return emptyState('taskAlt', 'Nothing finished yet', 'Tasks you complete will show up here.');
+    if (view === 'today') return emptyState('sunny', 'Nothing due today', 'Enjoy the calm, or tap New task to plan something.');
+    if (view === 'upcoming') return emptyState('upcoming', 'Nothing coming up', 'Tasks dated in the next 7 days land here.');
+    if (view === 'group') return emptyState('groupFilled', 'This group is empty', 'Tap New task to add one.');
+    return emptyState('beach', 'All clear', 'Tap New task to add one.');
   }
-  _askAddToDaily(text) {
-    return new Promise(resolve => {
-      const close = (answer) => { document.removeEventListener('keydown', onKey); overlay.remove(); resolve(answer); };
-      const onKey = (e) => { if (e.key === 'Escape') close(false); };
-      const overlay = createElement('div', { className: 'modal-overlay', onClick: (e) => { if (e.target === overlay) close(false); } },
-        createElement('div', { className: 'modal modal-sm' },
-          createElement('div', { className: 'modal-header' }, createElement('h3', {}, 'Add to Daily Tasks?')),
-          createElement('div', { className: 'modal-body' }, createElement('div', {}, `Log "${text}" as a daily task entry for today?`)),
-          createElement('div', { className: 'modal-footer' },
-            createElement('button', { className: 'btn btn-secondary', onClick: () => close(false) }, 'No'),
-            createElement('button', { className: 'btn btn-primary', onClick: () => close(true) }, 'Add entry')
-          )
-        )
-      );
-      document.addEventListener('keydown', onKey);
-      document.body.appendChild(overlay);
+
+  // ==================== Search ====================
+
+  const runSearch = debounce(() => load({ quiet: true }), 300);
+
+  /**
+   * The search bar: a pill that opens into a field with a type menu (task name / any tag / date / a
+   * specific tag type). The button on the right opens the menu (phones; wide screens have the drawer).
+   */
+  function renderSearch() {
+    if (searchSlot.dataset.mode === (state.searching ? 'open' : 'closed') && searchSlot.firstChild) return;
+    searchSlot.dataset.mode = state.searching ? 'open' : 'closed';
+    if (!state.searching) {
+      setChildren(searchSlot, h('div', { className: 'search-pill' },
+        h('button', { type: 'button', className: 'search-open interactive', onClick: () => { state.searching = true; renderSearch(); } },
+          icon('search'), h('span', { className: 'body-large' }, 'Search tasks and tags')),
+        h('button', { type: 'button', className: 'icon-btn menu-btn interactive', 'aria-label': 'Menu: groups, tags and settings', onClick: nav.openMenu }, icon('menuSteps')),
+      ));
+      return;
+    }
+    const input = h('input', { className: 'search-input', type: state.search.type === 'date' ? 'date' : 'text', placeholder: 'Search…', 'aria-label': 'Search', value: state.search.text, enterkeyhint: 'search' });
+    const select = h('select', { className: 'search-type', 'aria-label': 'Search by' },
+      h('option', { value: 'task' }, 'Task name'),
+      h('option', { value: 'tag' }, 'Any tag'),
+      h('option', { value: 'date' }, 'Date'),
+      ...store.tagTypes.map(t => h('option', { value: `type-${t.id}` }, t.name)),
+    );
+    select.value = state.search.tagTypeId ? `type-${state.search.tagTypeId}` : state.search.type;
+    select.addEventListener('change', () => {
+      const v = select.value;
+      const wasDate = state.search.type === 'date';
+      state.search.type = v.startsWith('type-') ? 'tag' : v;
+      state.search.tagTypeId = v.startsWith('type-') ? Number(v.slice(5)) : null;
+      // A date search uses the date picker; other searches use free text
+      if ((state.search.type === 'date') !== wasDate) { state.search.text = ''; input.value = ''; input.type = state.search.type === 'date' ? 'date' : 'text'; }
+      input.focus();
+      if (state.search.text) runSearch();
     });
+    input.addEventListener('input', () => { state.search.text = input.value; runSearch(); });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    const close = () => {
+      state.searching = false;
+      const had = !!state.search.text;
+      state.search = { text: '', type: 'task', tagTypeId: null };
+      renderSearch();
+      if (had) load({ quiet: true });
+    };
+    setChildren(searchSlot, h('div', { className: 'search-pill' },
+      h('div', { className: 'search-field' }, select, input,
+        h('button', { type: 'button', className: 'icon-btn interactive', 'aria-label': 'Close search', onClick: close }, icon('close'))),
+    ));
+    setTimeout(() => input.focus(), 0);
   }
-  async _toggleSubtask(s) { try { await api.toggleSubtask(s.id); const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } } catch (err) { showToast(err.message, 'error'); } }
-  _editTask(t) { if (!this.taskForm) this.taskForm = new TaskForm({ onSave: async () => { const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } this.onRefreshSidebar?.(); }, onClose: () => { } }); this.taskForm.open(t); }
-  async _deleteTask(t) { if (!confirm(`Delete "${t.title}"?`)) return; try { await api.deleteTask(t.id); showToast('Deleted', 'success'); const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } this.onRefreshSidebar?.(); } catch (err) { showToast(err.message, 'error'); } }
-  async refresh(c) { await this.loadTasks(); if (c) this.render(c); else { const b = document.getElementById('task-list-body'); if (b) this._renderTaskList(b); } }
-  openNewTaskForm() { if (!this.taskForm) this.taskForm = new TaskForm({ onSave: async () => { const b = document.getElementById('task-list-body'); if (b) { await this.loadTasks(); this._renderTaskList(b); } this.onRefreshSidebar?.(); }, onClose: () => { } }); this.taskForm.open(null); }
+
+  const off = store.on(() => { if (state.searching && root) { searchSlot.dataset.mode = ''; renderSearch(); } });
+
+  render();
+  load();
+
+  return {
+    el,
+    refresh: () => load({ quiet: true }),
+    onShow: () => load({ quiet: true }),
+    destroy: off,
+  };
 }

@@ -4,13 +4,33 @@
     {
       "name": "worker",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "worker", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "worker",
+        "run",
+        "dev"
+      ],
+      "port": 8787
+    },
+    {
+      "name": "worker-test",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd worker && set -a && . ./.dev.vars.test && exec npx wrangler dev --var PASSWORD_HASH:$PASSWORD_HASH --var JWT_SECRET:$JWT_SECRET --persist-to .wrangler/test-state"
+      ],
       "port": 8787
     },
     {
       "name": "frontend",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "5500", "--directory", "frontend"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5500",
+        "--directory",
+        "frontend"
+      ],
       "port": 5500
     }
   ]

@@ -1,327 +1,144 @@
 // ============================================================
-// Tasks — Tag Manager Component
+// Tasks — Tags page: tag types as cards of tonal chips
 // ============================================================
 
 import { api } from '../api.js';
+import { createElement as h, setChildren, showToast, tonal } from '../utils.js';
 import { icon } from '../icons.js';
-import { createElement, showToast, getTagBg, getChipStyle } from '../utils.js';
+import { chip, colorField, confirmDialog, dialog, emptyState, fab, textField, topBar } from '../ui.js';
+import { store } from '../store.js';
 
-export class TagManager {
-  constructor() {
-    this.tagTypes = [];
-  }
+export function createTagsPage({ nav }) {
+  const inner = h('div', { className: 'page-inner stack' });
+  const scroller = h('div', { className: 'page-scroll' }, topBar('Tags', nav.back), inner);
+  const el = h('div', { className: 'page' }, scroller, fab('New tag type', 'add', () => editType(null), scroller));
 
-  async loadData() {
-    try {
-      const data = await api.getTagTypes();
-      this.tagTypes = data.tag_types || [];
-    } catch (err) {
-      showToast(err.message, 'error');
+  const render = () => {
+    if (!store.tagTypes.length) {
+      setChildren(inner, emptyState('tagFilled', 'No tag types yet', 'Create tag types like "Project" or "Client" to organise tasks.'));
+      return;
     }
-  }
-
-  async render(container) {
-    await this.loadData();
-    container.innerHTML = '';
-    const body = createElement('div', { className: 'content-body' });
-    body.appendChild(createElement('div', { className: 'page-actions' },
-      createElement('button', { className: 'btn btn-primary', onClick: () => this._showAddTagType(container) }, icon('plus'), 'New tag type')
-    ));
-    const manager = createElement('div', { className: 'tag-manager' });
-    if (this.tagTypes.length === 0) {
-      manager.appendChild(createElement('div', { className: 'empty-state' },
-        createElement('div', { className: 'empty-icon' }, icon('tag', { size: 20 })),
-        createElement('h3', {}, 'No tag types yet'),
-        createElement('p', {}, 'Create tag types like "Project", "Client" to organize tasks.')
-      ));
-    } else {
-      this.tagTypes.forEach((type, i) => {
-        const card = this._renderCard(type, container);
-        card.style.animationDelay = `${i * 40}ms`;
-        manager.appendChild(card);
-      });
-    }
-    body.appendChild(manager);
-    container.appendChild(body);
-  }
-
-  _renderCard(type, root) {
-    return createElement('div', { className: 'tag-type-card' },
-      createElement('div', { className: 'tag-type-header' },
-        createElement('div', { className: 'tag-type-header-left' },
-          createElement('span', { className: 'type-color', style: { background: type.color } }),
-          type.icon ? createElement('span', { className: 'type-icon' }, type.icon) : null,
-          createElement('span', { className: 'type-name' }, type.name),
-          createElement('span', { className: 'type-count' }, String((type.tags || []).length))
+    setChildren(inner, ...store.tagTypes.map(type => {
+      const tags = type.tags || [];
+      const t = tonal(type.color);
+      return h('div', { className: 'type-card' },
+        h('div', { className: 'head' },
+          h('span', { className: `type-tile tile-tonal ${t.className}`, style: t.style }, type.icon ? type.icon : icon('tagFilled', { size: 20 })),
+          h('div', { className: 'head-text' },
+            h('div', { className: 'title-medium' }, type.name),
+            h('div', { className: 'body-small muted' }, `${tags.length} tag${tags.length === 1 ? '' : 's'}`),
+          ),
+          h('button', { type: 'button', className: 'icon-btn interactive', 'aria-label': `Edit ${type.name}`, onClick: () => editType(type) }, icon('edit', { size: 20 })),
+          h('button', { type: 'button', className: 'icon-btn interactive', 'aria-label': `Delete ${type.name}`, onClick: () => deleteType(type) }, icon('delete', { size: 20 })),
         ),
-        createElement('div', { className: 'row-actions' },
-          createElement('button', { className: 'task-action-btn', title: 'Edit', 'aria-label': 'Edit', onClick: () => this._editType(type, root) }, icon('pencil', { size: 15 })),
-          createElement('button', { className: 'task-action-btn delete', title: 'Delete', 'aria-label': 'Delete', onClick: () => this._deleteType(type, root) }, icon('trash', { size: 15 }))
-        )
-      ),
-      createElement('div', { className: 'tag-type-body' },
-        ...(type.tags || []).map(tag => this._chip(tag, type, root)),
-        createElement('button', { className: 'add-tag-inline', onClick: () => this._showAddTag(type, root) }, icon('plus'), 'Add tag')
-      )
-    );
-  }
+        tags.length ? h('div', { className: 'chips' }, ...tags.map(tag => chip(tag.name, tag.color, { fallback: type.color, onClick: () => editTag(type, tag) }))) : null,
+        // Always on its own line under the chips
+        h('button', { type: 'button', className: 'add-inline interactive', onClick: () => editTag(type, null) }, icon('add', { size: 16 }), 'Add tag'),
+      );
+    }));
+  };
 
-  _chip(tag, type, root) {
-    const style = getChipStyle({
-      color: tag.color,
-      fg_color: tag.fg_color,
-      has_bg: tag.has_bg,
-      type_color: type.color,
-      type_fg_color: type.fg_color,
-      type_has_bg: type.has_bg
-    });
-    return createElement('span', {
-      className: 'tag-chip tag-chip-editable', style,
-      onClick: () => this._editTag(tag, type, root)
-    },
-      tag.name,
-      createElement('button', { className: 'tag-remove', title: 'Delete tag', 'aria-label': `Delete ${tag.name}`, onClick: async (e) => {
-        e.stopPropagation();
-        if (confirm(`Delete tag "${tag.name}"?`)) {
-          try { await api.deleteTag(tag.id); showToast('Tag deleted', 'success'); this.render(root); }
-          catch (err) { showToast(err.message, 'error'); }
+  function editType(type) {
+    styleDialog({
+      title: type ? 'Edit tag type' : 'New tag type',
+      name: type?.name || '',
+      color: type?.color || '#6f6aa8',
+      icon: type?.icon || '',
+      withIcon: true,
+      applyAllCount: type?.tags?.length || 0,
+      onSave: async ({ name, color, icon: emoji, applyAll }) => {
+        // Text colour and fill are kept as they are; only the colour is chosen here
+        const data = { name, color, fg_color: type?.fg_color || '#ffffff', has_bg: type ? !!(type.has_bg ?? 1) : true, icon: emoji || null };
+        if (type) await api.updateTagType(type.id, data); else await api.createTagType(data);
+        if (type && applyAll) {
+          for (const tag of type.tags || []) {
+            await api.updateTag(tag.id, { name: tag.name, tag_type_id: type.id, color, fg_color: data.fg_color, has_bg: data.has_bg });
+          }
         }
-      }}, icon('x'))
-    );
+        showToast(type ? 'Updated' : 'Tag type created');
+        await store.loadTagTypes();
+      },
+    });
   }
 
-  _editTag(tag, type, root) {
-    const preview = createElement('span', { className: 'tag-chip chip-preview' }, tag.name);
-
-    const updatePreview = () => {
-      const name = nameInput.value || tag.name;
-      const style = getChipStyle({
-        color: colorInput.value,
-        fg_color: fgColorInput.value,
-        has_bg: hasBgCheck.checked
-      });
-      preview.textContent = name;
-      Object.assign(preview.style, style);
-    };
-
-    const nameInput = createElement('input', { type: 'text', className: 'form-input', value: tag.name, onInput: updatePreview });
-    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: tag.color || type.color, onInput: updatePreview });
-    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: tag.fg_color || type.fg_color || '#ffffff', onInput: updatePreview });
-    const hasBgCheck = createElement('input', { type: 'checkbox', checked: tag.has_bg !== undefined ? !!tag.has_bg : (type.has_bg !== undefined ? !!type.has_bg : true), onChange: updatePreview });
-
-    const body = [
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Tag Name'), nameInput),
-      createElement('div', { className: 'form-row' },
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Colour'), colorInput),
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Text colour'), fgColorInput),
-        createElement('div', { className: 'form-group' }, createElement('span', { className: 'form-label' }, 'Background'), createElement('label', { className: 'form-check' }, hasBgCheck, 'Filled')))
-    ];
-    this._modal('Edit Tag', body, async () => {
-      const name = nameInput.value.trim();
-      if (!name) { showToast('Name required', 'error'); throw 'stop'; }
-      try {
-        await api.updateTag(tag.id, {
+  function editTag(type, tag) {
+    // New Client tags start white (as before); others take the type's colour
+    const client = (type.name || '').toLowerCase() === 'client';
+    styleDialog({
+      title: tag ? 'Edit tag' : `Add ${type.name} tag`,
+      name: tag?.name || '',
+      color: tag?.color || (client ? '#ffffff' : type.color),
+      onDelete: tag ? () => confirmDialog(`Delete tag "${tag.name}"?`, 'It will be removed from every task.', 'Delete', async () => {
+        try { await api.deleteTag(tag.id); showToast('Tag deleted'); await store.loadTagTypes(); } catch (err) { showToast(err.message); }
+      }) : null,
+      onSave: async ({ name, color }) => {
+        const data = {
           name,
-          color: colorInput.value,
-          fg_color: fgColorInput.value,
-          has_bg: hasBgCheck.checked
-        });
-        showToast('Tag updated', 'success');
-        this.render(root);
-      }
-      catch (err) { showToast(err.message, 'error'); }
+          tag_type_id: type.id,
+          color,
+          fg_color: tag?.fg_color || (client ? '#000000' : (type.fg_color || '#ffffff')),
+          has_bg: tag ? !!(tag.has_bg ?? 1) : (client ? true : !!(type.has_bg ?? 1)),
+        };
+        if (tag) await api.updateTag(tag.id, data); else await api.createTag(data);
+        showToast(tag ? 'Tag updated' : 'Tag created');
+        await store.loadTagTypes();
+      },
     });
-    setTimeout(() => {
-      nameInput.focus();
-      updatePreview();
-    }, 100);
   }
 
-  _modal(title, bodyContent, onSave, onClose) {
-    const overlay = createElement('div', { className: 'modal-overlay', onClick: (e) => { if (e.target === overlay) overlay.remove(); } },
-      createElement('div', { className: 'modal modal-sm' },
-        createElement('div', { className: 'modal-header' },
-          createElement('h3', {}, title),
-          createElement('button', { className: 'modal-close', title: 'Close', 'aria-label': 'Close', onClick: () => overlay.remove() }, icon('x', { size: 18 }))
-        ),
-        createElement('div', { className: 'modal-body' }, ...bodyContent),
-        createElement('div', { className: 'modal-footer' },
-          createElement('button', { className: 'btn btn-secondary', onClick: () => overlay.remove() }, 'Cancel'),
-          createElement('button', { className: 'btn btn-primary', onClick: async () => { await onSave(); overlay.remove(); } }, 'Save')
-        )
-      )
-    );
-    document.body.appendChild(overlay);
-    return overlay;
-  }
-
-  _showAddTagType(root) {
-    const preview = createElement('span', { className: 'tag-chip chip-preview' }, 'Preview Tag');
-    
-    const updatePreview = () => {
-      const name = nameInput.value || 'Preview Tag';
-      const style = getChipStyle({
-        color: colorInput.value,
-        fg_color: fgColorInput.value,
-        has_bg: hasBgCheck.checked
-      });
-      preview.textContent = name;
-      Object.assign(preview.style, style);
-    };
-
-    const nameInput = createElement('input', { type: 'text', className: 'form-input', placeholder: 'e.g., Project, Client...', onInput: updatePreview });
-    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: '#6366f1', onInput: updatePreview });
-    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: '#ffffff', onInput: updatePreview });
-    const hasBgCheck = createElement('input', { type: 'checkbox', checked: true, onChange: updatePreview });
-    const iconInput = createElement('input', { type: 'text', className: 'form-input', placeholder: 'Tag', maxlength: '4' });
-
-    const body = [
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Name'), nameInput),
-      createElement('div', { className: 'form-row' },
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Colour'), colorInput),
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Text colour'), fgColorInput),
-        createElement('div', { className: 'form-group' }, createElement('span', { className: 'form-label' }, 'Background'), createElement('label', { className: 'form-check' }, hasBgCheck, 'Filled'))),
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Icon'), iconInput)
-    ];
-    this._modal('New Tag Type', body, async () => {
-      const name = nameInput.value.trim();
-      if (!name) { showToast('Name required', 'error'); throw 'stop'; }
-      try { 
-        await api.createTagType({ 
-          name, 
-          color: colorInput.value, 
-          fg_color: fgColorInput.value,
-          has_bg: hasBgCheck.checked,
-          icon: iconInput.value.trim() 
-        }); 
-        showToast('Created', 'success'); 
-        this.render(root); 
-      }
-      catch (err) { showToast(err.message, 'error'); }
+  function deleteType(type) {
+    confirmDialog(`Delete "${type.name}"?`, 'The tag type and all its tags will be deleted.', 'Delete', async () => {
+      try { await api.deleteTagType(type.id); showToast('Deleted'); await store.loadTagTypes(); } catch (err) { showToast(err.message); }
     });
-    setTimeout(() => {
-      nameInput.focus();
-      updatePreview();
-    }, 100);
   }
 
-  _showAddTag(type, root) {
-    const preview = createElement('span', { className: 'tag-chip chip-preview' }, 'Preview Tag');
-    
-    const updatePreview = () => {
-      const name = nameInput.value || 'Preview Tag';
-      const style = getChipStyle({
-        color: colorInput.value,
-        fg_color: fgColorInput.value,
-        has_bg: hasBgCheck.checked
-      });
-      preview.textContent = name;
-      Object.assign(preview.style, style);
-    };
+  render();
+  const off = store.on(render);
+  store.loadTagTypes();
+  return { el, destroy: off, onShow: () => store.loadTagTypes() };
+}
 
-    const nameInput = createElement('input', { type: 'text', className: 'form-input', placeholder: 'Tag name...', onInput: updatePreview });
-    // New Client tags start white on black; the colors stay editable
-    const isClient = (type.name || '').toLowerCase() === 'client';
-    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: isClient ? '#ffffff' : type.color, onInput: updatePreview });
-    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: isClient ? '#000000' : (type.fg_color || '#ffffff'), onInput: updatePreview });
-    const hasBgCheck = createElement('input', { type: 'checkbox', checked: isClient || (type.has_bg !== undefined ? !!type.has_bg : true), onChange: updatePreview });
-
-    const body = [
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Tag Name'), nameInput),
-      createElement('div', { className: 'form-row' },
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Colour'), colorInput),
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Text colour'), fgColorInput),
-        createElement('div', { className: 'form-group' }, createElement('span', { className: 'form-label' }, 'Background'), createElement('label', { className: 'form-check' }, hasBgCheck, 'Filled')))
-    ];
-    this._modal(`Add ${type.name} Tag`, body, async () => {
-      const name = nameInput.value.trim();
-      if (!name) { showToast('Name required', 'error'); throw 'stop'; }
-      try { 
-        await api.createTag({ 
-          name, 
-          tag_type_id: type.id, 
-          color: colorInput.value,
-          fg_color: fgColorInput.value,
-          has_bg: hasBgCheck.checked
-        }); 
-        showToast('Created', 'success'); 
-        this.render(root); 
-      }
-      catch (err) { showToast(err.message, 'error'); }
-    });
-    setTimeout(() => {
-      nameInput.focus();
-      updatePreview();
-    }, 100);
+/**
+ * Name + colour (+ an emoji for tag types) with a live chip preview, like the Android StyleDialog.
+ * onSave({ name, color, icon, applyAll }) may throw to keep the dialog open.
+ */
+export function styleDialog({ title, name, color, icon: emoji = '', withIcon = false, applyAllCount = 0, onDelete = null, onSave }) {
+  const s = { name, color, icon: emoji, applyAll: false };
+  const preview = h('div');
+  const paintPreview = () => setChildren(preview, chip(s.name.trim() || 'Preview', s.color));
+  const { el: nameField, input: nameInput } = textField({ label: 'Name', value: name, attrs: { autocapitalize: 'words' } });
+  const parts = [preview, nameField, colorField('Colour', color, (c) => { s.color = c; paintPreview(); })];
+  if (withIcon) {
+    const { el: iconField, input: iconInput } = textField({ label: 'Icon (emoji)', value: emoji, attrs: { maxlength: '4' } });
+    iconInput.addEventListener('input', () => { s.icon = iconInput.value.trim(); });
+    parts.push(iconField);
   }
-
-  _editType(type, root) {
-    const preview = createElement('span', { className: 'tag-chip chip-preview' }, type.name);
-    
-    const updatePreview = () => {
-      const name = nameInput.value || type.name;
-      const style = getChipStyle({
-        color: colorInput.value,
-        fg_color: fgColorInput.value,
-        has_bg: hasBgCheck.checked
-      });
-      preview.textContent = name;
-      Object.assign(preview.style, style);
-    };
-
-    const nameInput = createElement('input', { type: 'text', className: 'form-input', value: type.name, onInput: updatePreview });
-    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: type.color, onInput: updatePreview });
-    const fgColorInput = createElement('input', { type: 'color', className: 'form-input', value: (type.fg_color || '#ffffff'), onInput: updatePreview });
-    const hasBgCheck = createElement('input', { type: 'checkbox', checked: type.has_bg !== undefined ? !!type.has_bg : true, onChange: updatePreview });
-    const iconInput = createElement('input', { type: 'text', className: 'form-input', value: type.icon || '', maxlength: '4' });
-    const applyAllCheck = createElement('input', { type: 'checkbox' });
-    const tagCount = (type.tags || []).length;
-
-    const body = [
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Preview'), preview),
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Name'), nameInput),
-      createElement('div', { className: 'form-row' },
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Colour'), colorInput),
-        createElement('div', { className: 'form-group' }, createElement('label', {}, 'Text colour'), fgColorInput),
-        createElement('div', { className: 'form-group' }, createElement('span', { className: 'form-label' }, 'Background'), createElement('label', { className: 'form-check' }, hasBgCheck, 'Filled'))),
-      createElement('div', { className: 'form-group' }, createElement('label', {}, 'Icon'), iconInput),
-      ...(tagCount > 0 ? [createElement('div', { className: 'form-group' }, createElement('label', { className: 'form-check' }, applyAllCheck, `Apply these colours to all ${tagCount} tag${tagCount === 1 ? '' : 's'} in this category`))] : [])
-    ];
-    this._modal('Edit Tag Type', body, async () => {
-      const name = nameInput.value.trim();
-      if (!name) { showToast('Name required', 'error'); throw 'stop'; }
-      try { 
-        await api.updateTagType(type.id, { 
-          name, 
-          color: colorInput.value, 
-          fg_color: fgColorInput.value,
-          has_bg: hasBgCheck.checked,
-          icon: iconInput.value.trim() 
-        }); 
-        if (applyAllCheck.checked && tagCount > 0) {
-          await Promise.all(type.tags.map(tag => api.updateTag(tag.id, {
-            color: colorInput.value,
-            fg_color: fgColorInput.value,
-            has_bg: hasBgCheck.checked
-          })));
-        }
-        showToast(applyAllCheck.checked && tagCount > 0 ? 'Updated, colors applied to all tags' : 'Updated', 'success'); 
-        this.render(root); 
-      }
-      catch (err) { showToast(err.message, 'error'); }
-    });
-    setTimeout(() => {
-      nameInput.focus();
-      updatePreview();
-    }, 100);
+  if (applyAllCount > 0) {
+    const box = h('input', { type: 'checkbox' });
+    box.addEventListener('change', () => { s.applyAll = box.checked; });
+    parts.push(h('label', { className: 'check-row' }, box, `Apply this colour to all ${applyAllCount} tag${applyAllCount === 1 ? '' : 's'}`));
   }
-
-  async _deleteType(type, root) {
-    if (!confirm(`Delete "${type.name}" and all its tags?`)) return;
-    try { await api.deleteTagType(type.id); showToast('Deleted', 'success'); this.render(root); }
-    catch (err) { showToast(err.message, 'error'); }
-  }
+  const d = dialog({
+    title,
+    body: parts,
+    actions: [
+      ...(onDelete ? [{ label: 'Delete', kind: 'danger', start: true, onClick: () => { onDelete(); } }] : []),
+      { label: 'Cancel' },
+      {
+        label: 'Save',
+        onClick: async () => {
+          const n = s.name.trim();
+          if (!n) return false;
+          try { await onSave({ ...s, name: n }); } catch (err) { showToast(err.message); return false; }
+        },
+      },
+    ],
+  });
+  const save = d.actions[d.actions.length - 1];
+  const sync = () => { s.name = nameInput.value; save.disabled = !s.name.trim(); paintPreview(); };
+  nameInput.addEventListener('input', sync);
+  nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && s.name.trim()) save.click(); });
+  sync();
+  setTimeout(() => nameInput.focus(), 50);
+  return d;
 }

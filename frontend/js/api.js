@@ -3,27 +3,14 @@
 // ============================================================
 
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const defaultApiUrl = isLocalhost ? 'http://localhost:8787' : 'https://tasks-api.libinfaby.dev';
+const API_URL = isLocalhost ? 'http://localhost:8787' : 'https://tasks-api.libinfaby.dev';
 
-const CONFIG = {
-  API_URL: localStorage.getItem('tasks_api_url') || defaultApiUrl,
-};
+// The sign-in screen no longer offers a custom API URL; forget one saved by older versions
+try { localStorage.removeItem('tasks_api_url'); } catch { /* storage unavailable */ }
 
 class ApiClient {
   constructor() {
-    this.baseUrl = CONFIG.API_URL;
-  }
-
-  /**
-   * Set the API base URL (useful for dev/prod switching)
-   */
-  setBaseUrl(url) {
-    this.baseUrl = url;
-    localStorage.setItem('tasks_api_url', url);
-  }
-
-  getBaseUrl() {
-    return this.baseUrl;
+    this.baseUrl = API_URL;
   }
 
   /**
@@ -242,6 +229,19 @@ class ApiClient {
   async deleteGroup(id) {
     return this.request(`/groups/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  // ==================== Settings ====================
+  // Shared with the Android app: { default_group_id }
+  async getSettings() {
+    return this.request('/settings');
+  }
+
+  async updateSettings(data) {
+    return this.request('/settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
     });
   }
 

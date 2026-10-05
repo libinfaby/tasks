@@ -1,291 +1,171 @@
 // ============================================================
-// Tasks — Daily Tasks Component (Entry + Report)
+// Tasks — Daily log: a day's entries, or a report over a range (DailyScreen on Android)
 // ============================================================
 
 import { api } from '../api.js';
-import { createElement, showToast } from '../utils.js';
+import { createElement as h, setChildren, showSnackbar, showToast, todayStr, addDays, dateLabel, longLabel } from '../utils.js';
 import { icon } from '../icons.js';
+import { citem, confirmDialog, emptyState, nameDialog, scallop, sectionHeader, spinner, toggleGroup } from '../ui.js';
 
-// Local (not UTC) YYYY-MM-DD, so "today" matches the user's calendar day
-export function toDateStr(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
+const bullets = (entries) => entries.map(e => `• ${e.text}`).join('\n');
 
-function addDays(dateStr, delta) {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return toDateStr(new Date(y, m - 1, d + delta));
-}
-
-function prettyDate(dateStr) {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-  });
-}
-
-async function copyLines(entries) {
-  const text = entries.map(e => `\u2022 ${e.text}`).join('\n');
-  if (!text) {
-    showToast('Nothing to copy', 'info');
-    return;
-  }
+async function copyEntries(entries) {
+  if (!entries.length) { showSnackbar('Nothing to copy'); return; }
+  const text = bullets(entries);
   try {
     await navigator.clipboard.writeText(text);
   } catch {
     // Fallback for browsers/contexts without the async clipboard API
-    const ta = createElement('textarea', { style: { position: 'fixed', opacity: '0' } });
+    const ta = h('textarea', { style: { position: 'fixed', opacity: '0' } });
     ta.value = text;
     document.body.appendChild(ta);
     ta.select();
     document.execCommand('copy');
     ta.remove();
   }
-  showToast(`Copied ${entries.length} task${entries.length === 1 ? '' : 's'}`, 'success');
+  showSnackbar(`Copied ${entries.length} task${entries.length === 1 ? '' : 's'}`);
 }
 
-export class DailyLog {
-  constructor() {
-    this.entryDate = toDateStr(new Date());
-    this.reportFrom = addDays(toDateStr(new Date()), -6);
-    this.reportTo = toDateStr(new Date());
+export function createDailyPage() {
+  const state = { report: false, date: todayStr(), from: addDays(todayStr(), -6), to: todayStr(), entries: [], loading: true };
+  let seq = 0;
+
+  const title = h('div', { className: 'daily-title' });
+  const controls = h('div');
+  const list = h('div');
+  const inner = h('div', { className: 'page-inner' },
+    title,
+    toggleGroup([
+      { value: false, label: 'Day', icon: 'today' },
+      { value: true, label: 'Report', icon: 'report' },
+    ], false, (v) => { state.report = v; renderControls(); load(); }),
+    controls,
+    list,
+  );
+  const el = h('div', { className: 'page root' }, h('div', { className: 'page-scroll' }, inner));
+
+  async function load() {
+    const mine = ++seq;
+    state.loading = true;
+    renderList();
+    try {
+      const params = state.report ? { from: state.from, to: state.to } : { date: state.date };
+      const data = await api.getDailyLogs(params);
+      if (mine !== seq) return;
+      state.entries = data.logs || [];
+    } catch (err) {
+      if (mine !== seq) return;
+      state.entries = [];
+      showToast(err.message);
+    }
+    state.loading = false;
+    renderTitle();
+    renderList();
   }
 
-  // ==================== Entry ====================
-  async renderEntry(container) {
-    container.innerHTML = '';
-
-    const input = createElement('input', {
-      type: 'text',
-      className: 'form-input',
-      placeholder: 'What did you get done? Press Enter to add',
-      maxlength: '500',
-      onKeydown: (e) => { if (e.key === 'Enter') add(); },
-    });
-
-    const listEl = createElement('div', { className: 'daily-list' });
-    const countEl = createElement('span', { className: 'daily-count' });
-    let entries = [];
-
-    const dateInput = createElement('input', {
-      type: 'date',
-      className: 'form-input daily-date',
-      value: this.entryDate,
-      onChange: (e) => {
-        if (!e.target.value) { e.target.value = this.entryDate; return; }
-        this.entryDate = e.target.value;
-        load();
-      },
-    });
-
-    const copyBtn = createElement('button', {
-      className: 'btn btn-secondary',
-      onClick: () => copyLines(entries),
-    }, icon('copy'), 'Copy');
-
-    const draw = () => {
-      countEl.textContent = `${entries.length} task${entries.length === 1 ? '' : 's'}`;
-      listEl.innerHTML = '';
-      if (entries.length === 0) {
-        listEl.appendChild(createElement('div', { className: 'daily-empty' }, 'Nothing logged for this day yet.'));
-        return;
-      }
-      entries.forEach(e => listEl.appendChild(this._entryRow(e, load)));
-    };
-
-    // Only the most recent load may draw, so out-of-order responses can't show a stale list
-    let loadSeq = 0;
-    const load = async () => {
-      const seq = ++loadSeq;
-      let result = [];
-      try {
-        const data = await api.getDailyLogs({ date: this.entryDate });
-        result = data.logs || [];
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-      if (seq !== loadSeq) return;
-      entries = result;
-      draw();
-    };
-
-    // The input stays enabled and is cleared right away, so quick consecutive entries aren't lost
-    const add = async () => {
-      const text = input.value.trim();
-      if (!text) return;
-      input.value = '';
-      try {
-        await api.createDailyLog({ date: this.entryDate, text });
-        await load();
-      } catch (err) {
-        showToast(err.message, 'error');
-        if (!input.value) input.value = text;
-      }
-    };
-
-    container.appendChild(createElement('div', { className: 'daily-wrap' },
-      createElement('div', { className: 'daily-toolbar' },
-        createElement('div', { className: 'daily-date-group' },
-          createElement('button', { className: 'btn btn-secondary btn-icon', title: 'Previous day', 'aria-label': 'Previous day', onClick: () => shift(-1) }, icon('chevronLeft')),
-          dateInput,
-          createElement('button', { className: 'btn btn-secondary btn-icon', title: 'Next day', 'aria-label': 'Next day', onClick: () => shift(1) }, icon('chevronRight')),
-          createElement('button', { className: 'btn btn-ghost', onClick: () => { this.entryDate = toDateStr(new Date()); dateInput.value = this.entryDate; load(); } }, 'Today'),
-        ),
-        createElement('div', { className: 'daily-toolbar-right' }, countEl, copyBtn)
-      ),
-      createElement('div', { className: 'daily-add' },
-        input,
-        createElement('button', { className: 'btn btn-primary', onClick: add }, icon('plus'), 'Add')
-      ),
-      listEl
-    ));
-
-    const shift = (delta) => {
-      this.entryDate = addDays(this.entryDate, delta);
-      dateInput.value = this.entryDate;
-      load();
-    };
-
-    await load();
-    input.focus();
-  }
-
-  _entryRow(entry, reload) {
-    const textEl = createElement('span', { className: 'daily-text' }, entry.text);
-    const row = createElement('div', { className: 'daily-item' },
-      createElement('span', { className: 'daily-bullet' }),
-      textEl,
-      createElement('div', { className: 'daily-actions' },
-        createElement('button', { className: 'task-action-btn', title: 'Edit', 'aria-label': 'Edit entry', onClick: () => startEdit() }, icon('pencil', { size: 15 })),
-        createElement('button', { className: 'task-action-btn delete', title: 'Delete', 'aria-label': 'Delete entry', onClick: () => remove() }, icon('trash', { size: 15 })),
-      )
+  function renderTitle() {
+    setChildren(title,
+      h('h1', { className: 'display-small' }, 'Daily log'),
+      state.report ? null : h('button', { type: 'button', className: 'icon-btn interactive', 'aria-label': "Copy the day's entries", onClick: () => copyEntries(state.entries) }, icon('copy')),
     );
+  }
 
-    const startEdit = () => {
-      const edit = createElement('input', {
-        type: 'text',
-        className: 'form-input daily-edit',
-        value: entry.text,
-        maxlength: '500',
-      });
-      let done = false;
-      const save = async () => {
-        if (done) return;
-        done = true;
-        const text = edit.value.trim();
-        if (!text || text === entry.text) { reload(); return; }
-        try {
-          await api.updateDailyLog(entry.id, { text });
-        } catch (err) {
-          showToast(err.message, 'error');
-        }
-        reload();
+  /** A pill holding a date button; the native date picker sits over the label. */
+  function dateButton(value, label, onPick) {
+    const input = h('input', { type: 'date', value, 'aria-label': label });
+    input.addEventListener('change', () => { if (input.value) onPick(input.value); });
+    return h('label', { className: 'date-btn interactive' }, h('span', {}, dateLabelFor(value)), input);
+  }
+  const dateLabelFor = (d) => (d === todayStr() && !state.report ? 'Today' : state.report ? dateLabel(d) : longLabel(d));
+
+  function renderControls() {
+    renderTitle();
+    if (!state.report) {
+      // Previous day / the date (opens a picker) / next day, as one pill
+      const shift = (n) => { state.date = addDays(state.date, n); renderControls(); load(); };
+      const input = h('input', { type: 'text', placeholder: 'What did you get done?', 'aria-label': 'New entry', maxlength: '500', enterkeyhint: 'done', autocapitalize: 'sentences' });
+      // The input stays put and clears right away, so quick consecutive entries aren't lost
+      const add = async () => {
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        try { await api.createDailyLog({ date: state.date, text }); load(); } catch (err) { showToast(err.message); input.value = text; }
       };
-      edit.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') save();
-        if (e.key === 'Escape') { done = true; reload(); }
-      });
-      edit.addEventListener('blur', save);
-      textEl.replaceWith(edit);
-      edit.focus();
-      edit.select();
-    };
-
-    const remove = async () => {
-      try {
-        await api.deleteDailyLog(entry.id);
-        reload();
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-    };
-
-    return row;
-  }
-
-  // ==================== Report ====================
-  async renderReport(container) {
-    container.innerHTML = '';
-
-    const listEl = createElement('div', { className: 'daily-report-list' });
-
-    const fromInput = createElement('input', {
-      type: 'date', className: 'form-input daily-date', value: this.reportFrom,
-      onChange: (e) => { if (e.target.value) { this.reportFrom = e.target.value; load(); } else e.target.value = this.reportFrom; },
-    });
-    const toInput = createElement('input', {
-      type: 'date', className: 'form-input daily-date', value: this.reportTo,
-      onChange: (e) => { if (e.target.value) { this.reportTo = e.target.value; load(); } else e.target.value = this.reportTo; },
-    });
-
-    let loadSeq = 0;
-    const load = async () => {
-      const seq = ++loadSeq;
-      if (this.reportFrom > this.reportTo) {
-        listEl.innerHTML = '';
-        listEl.appendChild(createElement('div', { className: 'daily-empty' }, '"From" is after "To".'));
-        return;
-      }
-      let logs = [];
-      try {
-        const data = await api.getDailyLogs({ from: this.reportFrom, to: this.reportTo });
-        logs = data.logs || [];
-      } catch (err) {
-        showToast(err.message, 'error');
-      }
-      if (seq !== loadSeq) return;
-
-      // Group by day (API returns newest day first)
-      const byDay = new Map();
-      logs.forEach(l => {
-        if (!byDay.has(l.log_date)) byDay.set(l.log_date, []);
-        byDay.get(l.log_date).push(l);
-      });
-
-      listEl.innerHTML = '';
-      if (byDay.size === 0) {
-        listEl.appendChild(createElement('div', { className: 'daily-empty' }, 'No tasks logged in this range.'));
-        return;
-      }
-      byDay.forEach((entries, date) => {
-        listEl.appendChild(createElement('section', { className: 'daily-day' },
-          createElement('div', { className: 'daily-day-header' },
-            createElement('h3', {}, prettyDate(date)),
-            createElement('span', { className: 'daily-count' }, `${entries.length} task${entries.length === 1 ? '' : 's'}`),
-            createElement('button', { className: 'btn btn-ghost btn-sm', onClick: () => copyLines(entries) }, icon('copy'), 'Copy')
-          ),
-          createElement('div', { className: 'daily-list' },
-            ...entries.map(e => this._entryRow(e, load))
-          )
-        ));
-      });
-    };
-
-    const setRange = (days) => {
-      const today = toDateStr(new Date());
-      this.reportTo = today;
-      this.reportFrom = addDays(today, -(days - 1));
-      fromInput.value = this.reportFrom;
-      toInput.value = this.reportTo;
-      load();
-    };
-
-    container.appendChild(createElement('div', { className: 'daily-wrap' },
-      createElement('div', { className: 'daily-toolbar' },
-        createElement('div', { className: 'daily-date-group' },
-          createElement('label', { className: 'daily-label' }, 'From'), fromInput,
-          createElement('label', { className: 'daily-label' }, 'To'), toInput,
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+      setChildren(controls,
+        h('div', { className: 'pill-bar' },
+          h('button', { type: 'button', className: 'icon-btn interactive', 'aria-label': 'Previous day', onClick: () => shift(-1) }, icon('chevronLeft')),
+          dateButton(state.date, 'Pick a day', (d) => { state.date = d; renderControls(); load(); }),
+          h('button', { type: 'button', className: 'icon-btn interactive', 'aria-label': 'Next day', onClick: () => shift(1) }, icon('chevronRight')),
         ),
-        createElement('div', { className: 'daily-toolbar-right' },
-          createElement('button', { className: 'btn btn-secondary btn-sm', onClick: () => setRange(7) }, 'Last 7 days'),
-          createElement('button', { className: 'btn btn-secondary btn-sm', onClick: () => setRange(30) }, 'Last 30 days'),
-        )
-      ),
-      listEl
-    ));
-
-    await load();
+        h('div', { className: 'add-row' }, input,
+          h('button', { type: 'button', className: 'icon-btn filled interactive', 'aria-label': 'Add entry', onClick: add }, icon('add'))),
+      );
+    } else {
+      const today = todayStr();
+      const setRange = (from, to) => { state.from = from; state.to = to; renderControls(); load(); };
+      const preset = (days, label) => {
+        const selected = state.to === today && state.from === addDays(today, -(days - 1));
+        return h('button', {
+          type: 'button', className: 'pick-chip interactive', 'aria-pressed': String(selected),
+          onClick: () => setRange(addDays(today, -(days - 1)), today),
+        }, selected ? icon('check', { size: 18 }) : null, label);
+      };
+      setChildren(controls,
+        h('div', { className: 'pill-bar' },
+          dateButton(state.from, 'From', (d) => setRange(d, d > state.to ? d : state.to)),
+          icon('chevronRight', { className: 'muted' }),
+          dateButton(state.to, 'To', (d) => setRange(d < state.from ? d : state.from, d)),
+        ),
+        h('div', { className: 'range-chips' }, preset(7, 'Last 7 days'), preset(30, 'Last 30 days')),
+      );
+    }
   }
+
+  function entryRows(entries) {
+    return h('div', { className: 'connected' }, ...entries.map(e => citem(
+      h('div', { className: 'entry-row' },
+        h('span', { className: 'entry-dot' }, scallop()),
+        h('span', { className: 'entry-text' }, e.text),
+        h('button', {
+          type: 'button', className: 'icon-btn interactive', 'aria-label': 'Delete entry',
+          onClick: (ev) => {
+            ev.stopPropagation();
+            confirmDialog('Delete entry?', e.text, 'Delete', async () => {
+              try { await api.deleteDailyLog(e.id); load(); } catch (err) { showToast(err.message); }
+            });
+          },
+        }, icon('delete', { size: 20 })),
+      ),
+      {
+        onClick: () => nameDialog('Edit entry', 'Entry', e.text, async (text) => {
+          try { await api.updateDailyLog(e.id, { text }); load(); } catch (err) { showToast(err.message); }
+        }),
+      },
+    )));
+  }
+
+  function renderList() {
+    if (state.loading) return setChildren(list, spinner());
+    if (!state.entries.length) {
+      return setChildren(list, state.report
+        ? emptyState('report', 'Nothing in this range', 'Entries you log will add up here.')
+        : emptyState('dailyLogFilled', 'Nothing logged yet', 'Finish a task and tap Log it, or add one above.'));
+    }
+    if (!state.report) return setChildren(list, h('div', { style: { height: '20px' } }), entryRows(state.entries));
+    // The API returns newest day first
+    const byDay = new Map();
+    state.entries.forEach(e => { if (!byDay.has(e.log_date)) byDay.set(e.log_date, []); byDay.get(e.log_date).push(e); });
+    setChildren(list, ...[...byDay].flatMap(([day, entries]) => [
+      h('div', { style: { display: 'flex', alignItems: 'center' } },
+        h('div', { style: { flex: '1', minWidth: '0' } }, sectionHeader({ title: longLabel(day), icon: 'calendar', tile: 'primary square', trailing: String(entries.length) })),
+        h('button', { type: 'button', className: 'icon-btn interactive', 'aria-label': 'Copy this day', style: { marginTop: '10px' }, onClick: () => copyEntries(entries) }, icon('copy', { size: 20 })),
+      ),
+      entryRows(entries),
+    ]));
+  }
+
+  renderControls();
+  load();
+  return { el, refresh: load, onShow: load };
 }

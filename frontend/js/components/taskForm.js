@@ -1,399 +1,339 @@
 // ============================================================
-// Tasks — Task Form Component (Create/Edit Modal)
+// Tasks — Task editor (new / edit), the web counterpart of TaskEditorSheet on Android
 // ============================================================
 
 import { api } from '../api.js';
-import { createElement, showToast, formatDateInput, formatDatetimeLocal, getChipStyle, readableOnSurface, REPEAT_LABELS, PRIORITY_URGENT } from '../utils.js';
+import { createElement as h, setChildren, showToast, todayStr, addDays, dateLabel, formatTime, toDateStr, toDatetimeLocal, tonal,
+  REPEAT_LABELS, PRIORITY_URGENT,
+} from '../utils.js';
 import { icon } from '../icons.js';
+import { autosize, citem, confirmDialog, listRow, nameDialog, openMenu, sheet, switchEl, textField, toggleGroup } from '../ui.js';
+import { store } from '../store.js';
 
-// Unselected options are outlined in the tag's colour; selected ones are filled (see .tag-option)
-function tagOptionStyle(chip, isSelected) {
-  const primary = chip.background === 'transparent' ? chip.color : readableOnSurface(chip.background);
-  return isSelected
-    ? { background: chip.background, color: chip.color }
-    : { background: 'transparent', color: primary };
+let nextKey = 0;
+
+export function openTaskEditor(task, { onSaved }) {
+  const isEdit = !!task;
+  const d = isEdit ? {
+    title: task.title,
+    details: task.details || '',
+    date: task.date ? task.date.slice(0, 10) : null,
+    reminder: task.reminder ? new Date(task.reminder) : null,
+    repeat: task.reminder_repeat || null,
+    priority: task.priority > 0 ? PRIORITY_URGENT : 0,
+    groupId: task.group_id ?? null,
+    tagIds: new Set((task.tags || []).map(t => t.id)),
+    subtasks: (task.subtasks || []).map(s => ({ key: nextKey++, id: s.id, title: s.title, tagIds: new Set((s.tags || []).map(t => t.id)) })),
+  } : {
+    // New tasks default to today and to the default group from Settings
+    title: '', details: '', date: todayStr(), reminder: null, repeat: null, priority: 0,
+    groupId: store.defaultGroupId(), tagIds: new Set(), subtasks: [],
+  };
+  let saving = false;
+
+  // ---------- Header ----------
+  const groupSlot = h('div');
+  const renderGroup = () => {
+    const g = store.groups.find(x => x.id === d.groupId);
+    const t = g ? tonal(g.color) : null;
+    const btn = h('button', {
+      type: 'button',
+      className: `group-picker interactive ${g ? `tile-tonal ${t.className}` : 'none'}`,
+      style: t?.style,
+      'aria-label': `Group: ${g?.name || 'none'}. Change group`,
+      onClick: () => openMenu(btn, [
+        { label: 'No group', icon: 'block', checked: !g, onClick: () => { d.groupId = null; renderGroup(); } },
+        ...store.groups.map(x => ({
+          label: x.name,
+          iconEl: h('span', { className: 'group-dot', style: { background: x.color, width: '12px', height: '12px' } }),
+          checked: x.id === d.groupId,
+          onClick: () => { d.groupId = x.id; renderGroup(); },
+        })),
+      ]),
+    },
+      g ? h('span', { className: 'group-dot', style: { background: g.color, width: '12px', height: '12px' } }) : icon('group', { size: 18, className: 'small' }),
+      h('span', { className: 'text' }, g?.name || 'No group'),
+      icon('dropDown', { size: 24 }),
+    );
+    setChildren(groupSlot, btn);
+  };
+
+  // ---------- Title & details ----------
+  const titleInput = h('textarea', { className: 'bare-input editor-title', rows: '1', placeholder: 'What needs doing?', 'aria-label': 'Title', autocapitalize: 'sentences' });
+  titleInput.value = d.title;
+  titleInput.addEventListener('input', () => { d.title = titleInput.value; clearError(); });
+  // Enter in the title saves, like a single-line field
+  titleInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); } });
+  // One line of notes under the title, growing with each line written
+  const detailsInput = h('textarea', { className: 'bare-input', rows: '1', placeholder: 'Add details', 'aria-label': 'Details', autocapitalize: 'sentences' });
+  detailsInput.value = d.details;
+  detailsInput.addEventListener('input', () => { d.details = detailsInput.value; });
+
+  // ---------- When ----------
+  const whenSlot = h('div', { className: 'chip-row' });
+  const datePicker = h('input', { type: 'date', className: 'hidden-picker', tabindex: '-1', 'aria-hidden': 'true' });
+  datePicker.addEventListener('change', () => { if (datePicker.value) { d.date = datePicker.value; renderWhen(); } });
+  const renderWhen = () => {
+    const today = todayStr();
+    const presets = { today, tomorrow: addDays(today, 1) };
+    const selected = !d.date ? 'none' : d.date === presets.today ? 'today' : d.date === presets.tomorrow ? 'tomorrow' : 'custom';
+    const option = (key, label, iconName, onClick) => h('button', {
+      type: 'button', className: 'pick-chip interactive', 'aria-pressed': String(selected === key), onClick,
+    }, selected === key ? icon('check', { size: 18 }) : iconName ? icon(iconName, { size: 18 }) : null, label);
+    setChildren(whenSlot,
+      option('none', 'No date', 'eventBusy', () => { d.date = null; renderWhen(); }),
+      option('today', 'Today', null, () => { d.date = presets.today; renderWhen(); }),
+      option('tomorrow', 'Tomorrow', null, () => { d.date = presets.tomorrow; renderWhen(); }),
+      option('custom', selected === 'custom' ? dateLabel(d.date) : 'Pick date', 'editCalendar', () => {
+        datePicker.value = d.date || today;
+        try { datePicker.showPicker(); } catch { datePicker.click(); }
+      }),
+      datePicker,
+    );
+  };
+
+  // ---------- Reminder ----------
+  const reminderSlot = h('div', { className: 'connected' });
+  const renderReminder = () => {
+    const on = !!d.reminder;
+    const label = on ? `${dateLabel(toDateStr(d.reminder))} · ${formatTime(d.reminder)}` : 'Off';
+    const enable = () => {
+      const day = d.date || todayStr();
+      const now = new Date();
+      // An hour from now (on the hour) for today, otherwise 9 AM
+      if (day === todayStr()) { const t = new Date(now); t.setHours(now.getHours() + 1, 0, 0, 0); d.reminder = t; }
+      else { const [y, m, dd] = day.split('-').map(Number); d.reminder = new Date(y, m - 1, dd, 9, 0); }
+      renderReminder();
+    };
+    const toggle = switchEl(on, (v) => { if (v) enable(); else { d.reminder = null; d.repeat = null; renderReminder(); } }, 'Reminder');
+    const rows = [citem(listRow({ title: 'Reminder', supporting: label, icon: 'alarm', tile: 'primary', trailing: toggle }), {
+      onClick: () => (on ? reminderSlot.querySelector('input')?.focus() : enable()),
+    })];
+    if (on) {
+      const local = toDatetimeLocal(d.reminder.toISOString());
+      const { el: dateField, input: dateIn } = textField({ label: 'Date', type: 'date', value: local.slice(0, 10) });
+      const { el: timeField, input: timeIn } = textField({ label: 'Time', type: 'time', value: local.slice(11, 16) });
+      const apply = () => {
+        if (!dateIn.value || !timeIn.value) return;
+        const [y, m, dd] = dateIn.value.split('-').map(Number);
+        const [hh, mm] = timeIn.value.split(':').map(Number);
+        d.reminder = new Date(y, m - 1, dd, hh, mm);
+        rows[0].querySelector('.row-supporting').textContent = `${dateLabel(toDateStr(d.reminder))} · ${formatTime(d.reminder)}`;
+      };
+      dateIn.addEventListener('change', apply);
+      timeIn.addEventListener('change', apply);
+      rows.push(citem(h('div', { className: 'reminder-inputs' }, dateField, timeField)));
+      const repeatRow = citem(listRow({ title: 'Repeat', supporting: REPEAT_LABELS[d.repeat] || 'Does not repeat', icon: 'repeat', tile: 'circle', trailing: icon('dropDown') }), {
+        onClick: () => openMenu(repeatRow, [
+          { label: 'Does not repeat', checked: !d.repeat, onClick: () => { d.repeat = null; renderReminder(); } },
+          ...Object.entries(REPEAT_LABELS).map(([v, l]) => ({ label: l, checked: d.repeat === v, onClick: () => { d.repeat = v; renderReminder(); } })),
+        ]),
+      });
+      rows.push(repeatRow);
+    }
+    setChildren(reminderSlot, ...rows);
+  };
+
+  // ---------- Priority ----------
+  const priority = toggleGroup([
+    { value: 0, label: 'Normal', icon: 'block' },
+    { value: PRIORITY_URGENT, label: 'Urgent', icon: (sel) => icon(sel ? 'fireFilled' : 'fire', { size: 20 }), className: 'error' },
+  ], d.priority, (v) => { d.priority = v; }, { tall: true });
+
+  // ---------- Tags ----------
+  const tagsSlot = h('div', { className: 'selected-tags' });
+  const findTag = (id) => {
+    for (const type of store.tagTypes) {
+      const tag = (type.tags || []).find(t => t.id === id);
+      if (tag) return { tag, type };
+    }
+    return null;
+  };
+  // The task's tags as removable chips, with an Add tag button on its own line below
+  const renderTags = () => {
+    const chosen = [...d.tagIds].map(findTag).filter(Boolean);
+    setChildren(tagsSlot,
+      chosen.length ? h('div', { className: 'chip-row' }, ...chosen.map(({ tag, type }) => {
+        const t = tonal(tag.color, type.color);
+        return h('span', { className: `removable-chip ${t.className}`, style: t.style }, tag.name,
+          h('button', { type: 'button', className: 'icon-btn interactive', 'aria-label': `Remove tag ${tag.name}`, onClick: () => { d.tagIds.delete(tag.id); renderTags(); } }, icon('close', { size: 18 })));
+      })) : null,
+      h('button', { type: 'button', className: 'add-tags-btn interactive', onClick: openTagPicker }, icon('add', { size: 18 }), chosen.length ? 'Add tag' : 'Add tags'),
+    );
+  };
+  const openTagPicker = () => {
+    const selector = tagSelector(d.tagIds, () => renderTags(), { canCreate: true });
+    const s = sheet({
+      label: 'Tags',
+      body: [
+        h('div', { className: 'editor-head' }, h('h2', { className: 'headline-small' }, 'Tags'),
+          h('button', { type: 'button', className: 'btn btn-filled interactive', onClick: () => s.close() }, 'Done')),
+        selector,
+      ],
+    });
+  };
+
+  // ---------- Subtasks ----------
+  const subtasksSlot = h('div', { className: 'connected' });
+  let taggingKey = null;
+  const renderSubtasks = () => {
+    const rows = d.subtasks.map(row => {
+      const input = h('input', { type: 'text', placeholder: 'Subtask', value: row.title, 'aria-label': 'Subtask', autocapitalize: 'sentences' });
+      input.addEventListener('input', () => { row.title = input.value; });
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addSubtask(); } });
+      const hasTags = row.tagIds.size > 0;
+      return citem(h('div', {},
+        h('div', { className: 'subtask-item' },
+          h('span', { className: 'bullet' }),
+          input,
+          store.tagTypes.length ? h('button', {
+            type: 'button', className: `icon-btn interactive${hasTags ? ' on' : ''}`, 'aria-label': 'Subtask tags',
+            onClick: () => { taggingKey = taggingKey === row.key ? null : row.key; renderSubtasks(); },
+          }, icon(hasTags ? 'tagFilled' : 'tag', { size: 20 })) : null,
+          h('button', { type: 'button', className: 'icon-btn interactive', 'aria-label': 'Remove subtask', onClick: () => { d.subtasks = d.subtasks.filter(s => s !== row); renderSubtasks(); } }, icon('close', { size: 20 })),
+        ),
+        taggingKey === row.key ? h('div', { className: 'subtask-tags' }, tagSelector(row.tagIds, () => renderSubtasks())) : null,
+      ));
+    });
+    // Sized like the Reminder card above it: an icon tile and a full-size label
+    rows.push(citem(listRow({ title: 'Add subtask', icon: 'add', tile: 'primary', className: 'tall' }), { onClick: addSubtask }));
+    setChildren(subtasksSlot, ...rows);
+  };
+  const addSubtask = () => {
+    d.subtasks.push({ key: nextKey++, id: null, title: '', tagIds: new Set() });
+    renderSubtasks();
+    const inputs = subtasksSlot.querySelectorAll('.subtask-item input');
+    inputs[inputs.length - 1]?.focus();
+  };
+
+  // ---------- Footer ----------
+  const errorEl = h('div', { className: 'editor-error hidden', role: 'alert' });
+  const clearError = () => errorEl.classList.add('hidden');
+  const showError = (msg) => { errorEl.textContent = msg; errorEl.classList.remove('hidden'); };
+  const saveBtn = h('button', { type: 'button', className: 'btn btn-filled btn-lg interactive', onClick: () => save() },
+    icon('check', { size: 22 }), h('span', {}, isEdit ? 'Save' : 'Add task'));
+  const footer = [
+    isEdit ? h('button', { type: 'button', className: 'icon-btn error-tonal interactive', 'aria-label': 'Delete task', onClick: () => remove() }, icon('delete')) : null,
+    h('span', { className: 'spacer' }),
+    h('button', { type: 'button', className: 'btn btn-text btn-lg interactive', onClick: () => s.close() }, 'Cancel'),
+    saveBtn,
+  ];
+
+  const s = sheet({
+    label: isEdit ? 'Edit task' : 'New task',
+    body: [
+      h('div', { className: 'editor-head' }, h('h2', { className: 'headline-small' }, isEdit ? 'Edit task' : 'New task'), groupSlot),
+      h('div', { className: 'editor-title-block' }, titleInput, h('div', { className: 'details-row' }, icon('notes'), detailsInput)),
+      h('div', {}, h('span', { className: 'field-label' }, 'When'), whenSlot),
+      reminderSlot,
+      h('div', {}, h('span', { className: 'field-label' }, 'Priority'), priority),
+      h('div', {}, h('span', { className: 'field-label' }, 'Tags'), tagsSlot),
+      h('div', {}, h('span', { className: 'field-label' }, 'Subtasks'), subtasksSlot),
+      errorEl,
+    ],
+    footer,
+  });
+
+  renderGroup(); renderWhen(); renderReminder(); renderTags(); renderSubtasks();
+  autosize(titleInput);
+  autosize(detailsInput);
+  if (!isEdit) setTimeout(() => titleInput.focus(), 80);
+  // Groups or tag types edited elsewhere show up while the editor is open
+  const off = store.on(() => { renderGroup(); renderTags(); });
+  const observer = new MutationObserver(() => { if (!s.box.isConnected) { off(); observer.disconnect(); } });
+  observer.observe(document.body, { childList: true });
+
+  async function save() {
+    if (saving) return;
+    const title = d.title.trim();
+    if (!title) { showError('Title is required'); titleInput.focus(); return; }
+    const reminder = d.reminder ? d.reminder.toISOString() : null;
+    const data = {
+      title,
+      details: d.details.trim() || null,
+      date: d.date,
+      reminder,
+      // A repeat rule only means something alongside a reminder
+      reminder_repeat: reminder ? d.repeat : null,
+      priority: d.priority,
+      group_id: d.groupId,
+      tag_ids: [...d.tagIds],
+    };
+    const subtasks = d.subtasks.filter(st => st.title.trim()).map(st => ({ id: st.id, title: st.title.trim(), tag_ids: [...st.tagIds] }));
+    saving = true;
+    saveBtn.disabled = true;
+    saveBtn.lastChild.textContent = 'Saving…';
+    try {
+      if (isEdit) {
+        await api.updateTask(task.id, data);
+        const keep = subtasks.filter(st => st.id).map(st => st.id);
+        for (const old of task.subtasks || []) if (!keep.includes(old.id)) await api.deleteSubtask(old.id);
+        for (const st of subtasks) {
+          if (st.id) await api.updateSubtask(st.id, { title: st.title, tag_ids: st.tag_ids });
+          else await api.createSubtask({ task_id: task.id, title: st.title, tag_ids: st.tag_ids });
+        }
+      } else {
+        await api.createTask({ ...data, subtasks: subtasks.map(({ title: t, tag_ids }) => ({ title: t, tag_ids })) });
+      }
+      s.close();
+      onSaved();
+    } catch (err) {
+      saving = false;
+      saveBtn.disabled = false;
+      saveBtn.lastChild.textContent = isEdit ? 'Save' : 'Add task';
+      showError(err.message);
+    }
+  }
+
+  function remove() {
+    confirmDialog('Delete task?', `"${d.title || task.title}" will be deleted.`, 'Delete', async () => {
+      try {
+        await api.deleteTask(task.id);
+        s.close();
+        onSaved();
+      } catch (err) { showToast(err.message); }
+    });
+  }
 }
 
-export class TaskForm {
-  constructor({ onSave, onClose }) {
-    this.onSave = onSave;
-    this.onClose = onClose;
-    this.task = null; 
-    this.tagTypes = [];
-    this.groups = [];
-    this.subtasks = [];
-    this.selectedTagIds = new Set();
-    this.subtaskTags = new Map();
-  }
-
-  async open(task = null) {
-    this.task = task; this.subtasks = []; this.selectedTagIds = new Set(); this.subtaskTags = new Map();
-    try {
-      const [tagData, groupData] = await Promise.all([api.getTagTypes(), api.getGroups()]);
-      this.tagTypes = tagData.tag_types || [];
-      this.groups = groupData.groups || [];
-    } catch (err) { console.error('Failed to load form data:', err); }
-    if (task) {
-      this.subtasks = (task.subtasks || []).map(s => ({ id: s.id, title: s.title, tag_ids: (s.tags || []).map(t => t.id) }));
-      this.selectedTagIds = new Set((task.tags || []).map(t => t.id));
-      this.subtasks.forEach((s, i) => { this.subtaskTags.set(i, new Set(s.tag_ids)); });
+/** Tag options grouped by type: outlined when off, a tonal chip in the tag's colour when on. */
+function tagSelector(selected, onChange, { canCreate = false } = {}) {
+  const root = h('div', { className: 'tag-selector' });
+  const render = () => {
+    if (!store.tagTypes.length) {
+      setChildren(root, h('p', { className: 'body-medium muted' }, 'No tag types yet. Create them from the menu, under Tags.'));
+      return;
     }
-    this._render();
-  }
-
-  _render() {
-    document.querySelector('.modal-overlay')?.remove();
-    const isEdit = !!this.task;
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const overlay = createElement('div', {
-      className: 'modal-overlay', id: 'task-modal-overlay',
-      onClick: (e) => { if (e.target === overlay) this.close(); }
-    },
-      createElement('div', { className: 'modal', id: 'task-modal' },
-        createElement('div', { className: 'modal-header' },
-          createElement('h3', {}, isEdit ? 'Edit Task' : 'New Task'),
-          createElement('button', { className: 'modal-close', title: 'Close', 'aria-label': 'Close', onClick: () => this.close() }, icon('x', { size: 18 }))
-        ),
-        createElement('div', { className: 'modal-body' },
-          createElement('div', { className: 'form-group' },
-            createElement('label', { for: 'task-title' }, 'Title'),
-            createElement('input', { type: 'text', id: 'task-title', className: 'form-input', placeholder: 'What needs to be done?', value: this.task?.title || '', autofocus: 'true' }),
-            createElement('div', { id: 'selected-tags-preview', className: 'selected-tags-preview' })
-          ),
-          createElement('div', { className: 'form-group' },
-            createElement('label', { for: 'task-details' }, 'Details'),
-            createElement('textarea', { id: 'task-details', className: 'form-input', placeholder: 'Add more details…', rows: '3' }, this.task?.details || '')
-          ),
-          createElement('div', { className: 'form-row' },
-            createElement('div', { className: 'form-group' },
-              createElement('label', { for: 'task-date' }, 'Date'),
-              createElement('input', { type: 'date', id: 'task-date', className: 'form-input', value: isEdit ? (formatDateInput(this.task?.date) || '') : todayStr })
-            ),
-            createElement('div', { className: 'form-group' },
-              createElement('label', { for: 'task-reminder' }, 'Reminder'),
-              createElement('input', { type: 'datetime-local', id: 'task-reminder', className: 'form-input', value: formatDatetimeLocal(this.task?.reminder) || '' })
-            ),
-            createElement('div', { className: 'form-group' },
-              createElement('label', { for: 'task-repeat' }, 'Repeat'),
-              createElement('select', { id: 'task-repeat', className: 'form-select' },
-                createElement('option', { value: '' }, 'Does not repeat'),
-                ...Object.entries(REPEAT_LABELS).map(([value, label]) => createElement('option', { value }, label))
-              )
-            )
-          ),
-          createElement('div', { className: 'form-row' },
-            createElement('div', { className: 'form-group' },
-              createElement('label', { for: 'task-priority' }, 'Priority'),
-              createElement('select', { id: 'task-priority', className: 'form-select' },
-                createElement('option', { value: '0' }, 'Normal'),
-                createElement('option', { value: String(PRIORITY_URGENT) }, 'Urgent')
-              )
-            ),
-            createElement('div', { className: 'form-group' },
-              createElement('label', { for: 'task-group' }, 'Group'),
-              createElement('select', { id: 'task-group', className: 'form-select' },
-                createElement('option', { value: '' }, 'No Group'),
-                ...this.groups.map(g => createElement('option', { value: String(g.id) }, g.name))
-              )
-            )
-          ),
-          createElement('div', { className: 'form-group' },
-            createElement('label', {}, 'Tags'),
-            this._renderTagSelector('task-tags', this.selectedTagIds, (tagId) => {
-              if (this.selectedTagIds.has(tagId)) this.selectedTagIds.delete(tagId); else this.selectedTagIds.add(tagId);
-              this._refreshTagSelector('task-tags', this.selectedTagIds);
-            })
-          ),
-          createElement('div', { className: 'form-group' },
-            createElement('label', {}, 'Subtasks'),
-            createElement('div', { className: 'subtask-editor', id: 'subtask-editor' },
-              ...this.subtasks.map((s, i) => this._renderSubtaskItem(s, i)),
-              createElement('button', { type: 'button', className: 'add-subtask-btn', onClick: () => this._addSubtask() }, icon('plus', { size: 15 }), 'Add subtask')
-            )
-          )
-        ),
-        createElement('div', { className: 'modal-footer' },
-          isEdit ? createElement('button', { className: 'btn btn-danger footer-start', onClick: () => this._deleteTask() }, icon('trash'), 'Delete') : null,
-          createElement('button', { className: 'btn btn-secondary', onClick: () => this.close() }, 'Cancel'),
-          createElement('button', { className: 'btn btn-primary', id: 'task-save-btn', onClick: () => this._save() }, isEdit ? 'Save changes' : 'Create task')
-        )
-      )
-    );
-    document.body.appendChild(overlay);
-    setTimeout(() => {
-      document.getElementById('task-title')?.focus();
-      this._renderTagsPreview();
-      const p = document.getElementById('task-priority'); if (p && this.task) p.value = String(this.task.priority > 0 ? PRIORITY_URGENT : 0);
-      const g = document.getElementById('task-group'); if (g && this.task) g.value = String(this.task.group_id || '');
-      const r = document.getElementById('task-repeat'); if (r && this.task) r.value = this.task.reminder_repeat || '';
-    }, 100);
-  }
-
-  _renderTagSelector(containerId, selectedIds, onToggle) {
-    const container = createElement('div', { className: 'tag-selector', id: containerId });
-    if (this.tagTypes.length === 0) {
-      container.appendChild(createElement('div', { className: 'tag-selector-empty' },
-        createElement('p', {}, 'No tag types yet.'),
-        createElement('button', {
-          type: 'button', className: 'add-tag-inline',
-          onClick: () => this._showInlineCreateTagType(containerId, selectedIds, onToggle)
-        }, icon('plus'), 'Create tag type')
-      ));
-      return container;
-    }
-    this.tagTypes.forEach(type => {
-      const hasTags = type.tags && type.tags.length > 0;
-      const group = createElement('div', { className: 'tag-selector-group' },
-        createElement('div', { className: 'tag-selector-group-header' },
-          createElement('div', { className: 'tag-selector-group-title' }, `${type.name}`),
-          createElement('button', {
-            type: 'button', className: 'tag-selector-add-btn',
-            onClick: () => this._showInlineCreateTag(type, containerId, selectedIds, onToggle)
-          }, '+ New')
-        ),
-        createElement('div', { className: 'tag-selector-options' },
-          ...(hasTags ? type.tags.map(tag => {
-            const isSelected = selectedIds.has(tag.id);
-            const style = getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: type.color, type_fg_color: type.fg_color, type_has_bg: type.has_bg });
-            return createElement('button', {
-              type: 'button', className: `tag-option${isSelected ? ' selected' : ''}`, dataset: { tagId: tag.id },
-              'aria-pressed': String(isSelected),
-              style: tagOptionStyle(style, isSelected),
-              onClick: () => onToggle(tag.id),
-            }, tag.name);
-          }) : [createElement('span', { className: 'tag-selector-none' }, 'No tags yet — use + New to add one')])
-        )
-      );
-      container.appendChild(group);
-    });
-    return container;
-  }
-
-  _showInlineCreateTag(type, containerId, selectedIds, onToggle) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    // Remove any existing inline form
-    container.querySelector('.inline-tag-form')?.remove();
-
-    const nameInput = createElement('input', {
-      type: 'text', className: 'form-input', placeholder: `New ${type.name} tag name…`,
-    });
-    const saveBtn = createElement('button', {
-      type: 'button', className: 'btn btn-primary btn-sm',
-      onClick: async () => {
-        const name = nameInput.value.trim();
-        if (!name) { nameInput.focus(); return; }
-        saveBtn.textContent = '...'; saveBtn.disabled = true;
-        try {
-          const result = await api.createTag({ name, tag_type_id: type.id, color: type.color, fg_color: type.fg_color || '#ffffff', has_bg: type.has_bg !== undefined ? type.has_bg : true });
-          showToast(`Tag "${name}" created`, 'success');
-          // Reload tag types and re-render selector in place
-          await this._reloadAndRefreshTagSelector(containerId, selectedIds, onToggle);
-        } catch (err) {
-          showToast(err.message, 'error');
-          saveBtn.textContent = 'Add'; saveBtn.disabled = false;
-        }
-      }
-    }, 'Add');
-    const cancelBtn = createElement('button', {
-      type: 'button', className: 'btn btn-ghost btn-sm',
-      onClick: () => form.remove()
-    }, 'Cancel');
-
-    const form = createElement('div', { className: 'inline-tag-form' },
-      createElement('div', { className: 'inline-tag-form-title' }, `Add tag to ${type.name}`),
-      createElement('div', { className: 'inline-tag-form-row' }, nameInput, saveBtn, cancelBtn)
-    );
-
-    // Insert the form at the top of the container
-    container.insertBefore(form, container.firstChild);
-    setTimeout(() => nameInput.focus(), 50);
-
-    // Support Enter key
-    nameInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); saveBtn.click(); }
-      if (e.key === 'Escape') { form.remove(); }
-    });
-  }
-
-  _showInlineCreateTagType(containerId, selectedIds, onToggle) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    container.querySelector('.inline-tag-form')?.remove();
-
-    const nameInput = createElement('input', {
-      type: 'text', className: 'form-input', placeholder: 'Tag type name (e.g. Project, Client)…',
-    });
-    const colorInput = createElement('input', { type: 'color', className: 'form-input', value: '#6366f1', title: 'Colour' });
-    const saveBtn = createElement('button', {
-      type: 'button', className: 'btn btn-primary btn-sm',
-      onClick: async () => {
-        const name = nameInput.value.trim();
-        if (!name) { nameInput.focus(); return; }
-        saveBtn.textContent = '...'; saveBtn.disabled = true;
-        try {
-          await api.createTagType({ name, color: colorInput.value, fg_color: '#ffffff', has_bg: true, icon: '' });
-          showToast(`Tag type "${name}" created`, 'success');
-          await this._reloadAndRefreshTagSelector(containerId, selectedIds, onToggle);
-        } catch (err) {
-          showToast(err.message, 'error');
-          saveBtn.textContent = 'Create'; saveBtn.disabled = false;
-        }
-      }
-    }, 'Create');
-    const cancelBtn = createElement('button', {
-      type: 'button', className: 'btn btn-ghost btn-sm',
-      onClick: () => form.remove()
-    }, 'Cancel');
-
-    const form = createElement('div', { className: 'inline-tag-form' },
-      createElement('div', { className: 'inline-tag-form-title' }, 'Create a new tag type'),
-      createElement('div', { className: 'inline-tag-form-row' }, nameInput, colorInput, saveBtn, cancelBtn)
-    );
-
-    container.innerHTML = '';
-    container.appendChild(form);
-    setTimeout(() => nameInput.focus(), 50);
-
-    nameInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); saveBtn.click(); }
-      if (e.key === 'Escape') { form.remove(); }
-    });
-  }
-
-  async _reloadAndRefreshTagSelector(containerId, selectedIds, onToggle) {
+    setChildren(root, ...store.tagTypes.map(type => h('div', { className: 'tag-type-block' },
+      h('div', { className: 'head' },
+        h('span', { className: 'title-small' }, type.name),
+        canCreate ? h('button', { type: 'button', className: 'btn btn-text interactive', onClick: () => createIn(type) }, icon('add', { size: 18 }), 'New') : null,
+      ),
+      (type.tags || []).length
+        ? h('div', { className: 'chip-row', style: { marginTop: '4px' } }, ...type.tags.map(tag => {
+          const on = selected.has(tag.id);
+          const t = tonal(tag.color, type.color);
+          return h('button', {
+            type: 'button',
+            className: `pick-chip interactive ${t.className}`,
+            style: t.style,
+            'aria-pressed': String(on),
+            onClick: () => { if (on) selected.delete(tag.id); else selected.add(tag.id); render(); onChange(); },
+          }, on ? icon('check', { size: 18 }) : null, tag.name);
+        }))
+        : h('p', { className: 'body-small muted', style: { marginTop: '4px' } }, 'No tags yet'),
+    )));
+  };
+  // Creates a tag in [type] (inheriting its colours) and selects it
+  const createIn = (type) => nameDialog(`New ${type.name} tag`, 'Tag name', '', async (name) => {
     try {
-      const tagData = await api.getTagTypes();
-      this.tagTypes = tagData.tag_types || [];
-    } catch (err) { console.error('Failed to reload tags:', err); }
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    const newSelector = this._renderTagSelector(containerId, selectedIds, onToggle);
-    container.replaceWith(newSelector);
-    // Also refresh the preview
-    if (containerId === 'task-tags') this._renderTagsPreview();
-  }
-
-  _refreshTagSelector(containerId, selectedIds) {
-    const container = document.getElementById(containerId); if (!container) return;
-    container.querySelectorAll('.tag-option').forEach(el => {
-      const tagId = parseInt(el.dataset.tagId); const isSelected = selectedIds.has(tagId);
-      el.classList.toggle('selected', isSelected);
-      let tagData = null; let typeData = null;
-      for (const type of this.tagTypes) {
-        const tag = type.tags?.find(t => t.id === tagId);
-        if (tag) { tagData = tag; typeData = type; break; }
-      }
-      if (tagData && typeData) {
-        const style = getChipStyle({ color: tagData.color, fg_color: tagData.fg_color, has_bg: tagData.has_bg, type_color: typeData.color, type_fg_color: typeData.fg_color, type_has_bg: typeData.has_bg });
-        Object.assign(el.style, tagOptionStyle(style, isSelected));
-        el.setAttribute('aria-pressed', String(isSelected));
-      }
-    });
-    if (containerId === 'task-tags') this._renderTagsPreview();
-  }
-
-  _renderTagsPreview() {
-    const container = document.getElementById('selected-tags-preview'); if (!container) return;
-    container.innerHTML = '';
-    this.selectedTagIds.forEach(id => {
-      let ft = null; let fty = null;
-      for(const type of this.tagTypes) {
-        const tag = type.tags?.find(t => t.id === id);
-        if (tag) { ft = tag; fty = type; break; }
-      }
-      if (ft && fty) {
-        const s = getChipStyle({ color: ft.color, fg_color: ft.fg_color, has_bg: ft.has_bg, type_color: fty.color, type_fg_color: fty.fg_color, type_has_bg: fty.type_has_bg });
-        container.appendChild(createElement('span', { className: 'tag-chip', style: s }, createElement('span', { className: 'tag-type-label' }, `${fty.name}:`), ` ${ft.name}`));
-      }
-    });
-  }
-
-  _renderSubtaskItem(subtask, index) {
-    const item = createElement('div', { className: 'subtask-editor-item', dataset: { subtaskIndex: index } },
-      createElement('input', { type: 'text', className: 'subtask-title-input', placeholder: 'Subtask title…', value: subtask.title || '', dataset: { subtaskIndex: index } }),
-      createElement('button', { type: 'button', className: 'icon-btn', title: 'Tags', 'aria-label': 'Subtask tags', onClick: () => this._toggleSubtaskTags(index) }, icon('tag', { size: 15 })),
-      createElement('button', { type: 'button', className: 'icon-btn danger', title: 'Remove', 'aria-label': 'Remove subtask', onClick: () => this._removeSubtask(index) }, icon('x', { size: 15 }))
-    );
-    const tagsContainer = createElement('div', { className: 'subtask-tags-selector hidden', id: `subtask-tags-${index}` });
-    if (!this.subtaskTags.has(index)) this.subtaskTags.set(index, new Set());
-    return createElement('div', {}, item, tagsContainer);
-  }
-
-  _toggleSubtaskTags(index) {
-    const c = document.getElementById(`subtask-tags-${index}`); if (!c) return;
-    if (c.classList.contains('hidden')) {
-      c.classList.remove('hidden'); c.innerHTML = '';
-      const ids = this.subtaskTags.get(index) || new Set();
-      const sel = this._renderTagSelector(`subtask-tag-sel-${index}`, ids, (tid) => {
-        const cur = this.subtaskTags.get(index) || new Set();
-        if (cur.has(tid)) cur.delete(tid); else cur.add(tid);
-        this.subtaskTags.set(index, cur); this._refreshTagSelector(`subtask-tag-sel-${index}`, cur);
-      });
-      c.appendChild(sel);
-    } else { c.classList.add('hidden'); }
-  }
-
-  _addSubtask() {
-    const ed = document.getElementById('subtask-editor'); if (!ed) return;
-    const i = this.subtasks.length; this.subtasks.push({ title: '' }); this.subtaskTags.set(i, new Set());
-    const btn = ed.querySelector('.add-subtask-btn'); const item = this._renderSubtaskItem({ title: '' }, i); ed.insertBefore(item, btn);
-    setTimeout(() => { item.querySelector('input')?.focus(); }, 50);
-  }
-
-  _removeSubtask(index) {
-    const ed = document.getElementById('subtask-editor'); if (!ed) return;
-    const items = ed.querySelectorAll(`[data-subtask-index="${index}"]`);
-    items.forEach(el => { const w = el.closest('.subtask-editor-item')?.parentElement; if (w) w.remove(); });
-    this.subtasks[index] = null; this.subtaskTags.delete(index);
-  }
-
-  async _save() {
-    const title = document.getElementById('task-title')?.value?.trim();
-    const details = document.getElementById('task-details')?.value?.trim();
-    const date = document.getElementById('task-date')?.value || null;
-    const reminderVal = document.getElementById('task-reminder')?.value || null;
-    const reminder = reminderVal ? new Date(reminderVal).toISOString() : null;
-    // A repeat rule only means something alongside a reminder
-    const reminderRepeat = reminder ? (document.getElementById('task-repeat')?.value || null) : null;
-    const priority = parseInt(document.getElementById('task-priority')?.value || '0');
-    const groupId = document.getElementById('task-group')?.value || null;
-    if (!title) { showToast('Title is required', 'error'); document.getElementById('task-title')?.focus(); return; }
-    const subtaskInputs = document.querySelectorAll('.subtask-title-input');
-    const subtasks = [];
-    subtaskInputs.forEach((input) => {
-      const idx = parseInt(input.dataset.subtaskIndex); const stTitle = input.value.trim();
-      if (stTitle) {
-        const tids = this.subtaskTags.get(idx);
-        subtasks.push({ title: stTitle, tag_ids: tids ? [...tids] : [], ...(this.subtasks[idx]?.id ? { id: this.subtasks[idx].id } : {}) });
-      }
-    });
-    const saveBtn = document.getElementById('task-save-btn');
-    if (saveBtn) { saveBtn.textContent = 'Saving…'; saveBtn.disabled = true; }
-    try {
-      const taskData = { title, details: details || null, date, reminder, reminder_repeat: reminderRepeat, priority, group_id: groupId ? parseInt(groupId) : null, tag_ids: [...this.selectedTagIds] };
-      if (this.task) {
-        await api.updateTask(this.task.id, taskData);
-        const oldIds = (this.task.subtasks || []).map(s => s.id); const newIds = subtasks.filter(s => s.id).map(s => s.id);
-        for (const id of oldIds) { if (!newIds.includes(id)) await api.deleteSubtask(id); }
-        for (const sub of subtasks) {
-          if (sub.id) await api.updateSubtask(sub.id, { title: sub.title, tag_ids: sub.tag_ids });
-          else await api.createSubtask({ task_id: this.task.id, title: sub.title, tag_ids: sub.tag_ids });
-        }
-        showToast('Task updated', 'success');
-      } else { taskData.subtasks = subtasks; await api.createTask(taskData); showToast('Task created', 'success'); }
-      this.close(); this.onSave();
-    } catch (err) {
-      showToast(err.message, 'error');
-      if (saveBtn) { saveBtn.textContent = this.task ? 'Save changes' : 'Create task'; saveBtn.disabled = false; }
-    }
-  }
-
-  async _deleteTask() {
-    if (!this.task) return; if (!confirm('Delete this task?')) return;
-    try { await api.deleteTask(this.task.id); showToast('Task deleted', 'success'); this.close(); this.onSave(); } catch (err) { showToast(err.message, 'error'); }
-  }
-
-  close() { document.getElementById('task-modal-overlay')?.remove(); this.onClose?.(); }
+      const { id } = await api.createTag({ name, tag_type_id: type.id, color: type.color, fg_color: type.fg_color || '#ffffff', has_bg: type.has_bg ?? true });
+      await store.loadTagTypes();
+      selected.add(id);
+      render();
+      onChange();
+    } catch (err) { showToast(err.message); }
+  });
+  render();
+  return root;
 }
