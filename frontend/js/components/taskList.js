@@ -135,9 +135,8 @@ export class TaskList {
     return createElement('div', { className: 'tag-list' },
       ...sorted.map(tag => {
         const kind = isKindTag(tag);
-        const style = kind
-          ? getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: true, type_color: tag.type_color, type_fg_color: tag.type_fg_color })
-          : getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: tag.type_color, type_fg_color: tag.type_fg_color, type_has_bg: tag.type_has_bg });
+        // Kind chips are pills but otherwise follow the tag's own colours and fill, like every other tag
+        const style = getChipStyle({ color: tag.color, fg_color: tag.fg_color, has_bg: tag.has_bg, type_color: tag.type_color, type_fg_color: tag.type_fg_color, type_has_bg: tag.type_has_bg });
         return createElement('span', {
           className: `tag-chip selected-tag-clickable${kind ? ' kind-chip' : ''}`,
           style,

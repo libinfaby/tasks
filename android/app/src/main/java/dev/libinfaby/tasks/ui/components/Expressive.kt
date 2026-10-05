@@ -148,7 +148,7 @@ fun CompletionBurst(trigger: Any?, modifier: Modifier = Modifier) {
             t.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
         }
     }
-    val colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.tertiary)
+    val colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.inversePrimary)
     Canvas(modifier) {
         val p = t.value
         if (p >= 1f) return@Canvas
@@ -250,8 +250,8 @@ fun EmptyState(icon: ImageVector, title: String, text: String, modifier: Modifie
     Column(modifier.fillMaxWidth().padding(vertical = 48.dp, horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
             shape = RoundedCornerShape(30.dp),
-            color = MaterialTheme.colorScheme.tertiaryContainer,
-            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier.size(88.dp).rotate(-8f),
         ) {
             Box(contentAlignment = Alignment.Center) { Icon(icon, null, modifier = Modifier.size(44.dp)) }

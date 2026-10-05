@@ -1,5 +1,7 @@
 package dev.libinfaby.tasks.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,6 +10,8 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,7 +25,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -31,12 +34,16 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.libinfaby.tasks.ui.theme.TasksIcons
@@ -106,54 +113,72 @@ fun ConfirmDialog(title: String, text: String, confirm: String, destructive: Boo
     )
 }
 
+// Twelve hues around the wheel at a Material tone-40 strength, plus a neutral. Tags and groups draw
+// these as tonal pairs (tagColors), so each hue stays distinct once softened.
 private val SWATCHES = listOf(
-    "#e5484d", "#ef6c1a", "#f5b400", "#30a46c", "#12a594", "#0090ff", "#1a5fb4", "#5b5bd6",
-    "#8e4ec6", "#d6409f", "#613583", "#a51d2d", "#1d5609", "#71717a", "#18181b", "#ffffff",
+    "#b3261e" to "Red", "#a04100" to "Orange", "#7d5700" to "Amber", "#5b6300" to "Olive",
+    "#2e6b30" to "Green", "#006a60" to "Teal", "#006782" to "Cyan", "#275ea8" to "Blue",
+    "#4a5ba8" to "Indigo", "#6750a4" to "Purple", "#8a3f8a" to "Magenta", "#a23a5f" to "Pink",
+    "#6f6f78" to "Neutral",
 )
 
-/** Colour choice: preset swatches plus a hex field (same values the web colour input stores). */
+private val HEX = Regex("^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
+/**
+ * Colour choice as Material swatches: each circle shows the tone a tag or group takes, with a dot of
+ * its text tone; the picked one gets a check and a ring. The last swatch opens a hex field for anything else.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ColorField(label: String, hex: String, onChange: (String) -> Unit) {
+    val preset = SWATCHES.any { it.first.equals(hex, ignoreCase = true) }
+    var custom by remember { mutableStateOf(!preset) }
     Column {
         FieldLabel(label)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SWATCHES.forEach { s ->
-                val selected = s.equals(hex, ignoreCase = true)
-                val color = parseHex(s)
-                // The picked swatch turns into a scallop with a check, like a completed task
-                Surface(
-                    onClick = { onChange(s) },
-                    shape = if (selected) Scallop else CircleShape,
-                    color = color,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, if (selected) Scallop else CircleShape)
-                        .semantics { contentDescription = s; this.selected = selected },
-                ) {
-                    if (selected) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(TasksIcons.Check, null, tint = if (color.isLight()) Color.Black else Color.White, modifier = Modifier.size(20.dp))
-                        }
-                    }
+        FlowRow(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            SWATCHES.forEach { (value, name) ->
+                Swatch(tagColors(value), selected = !custom && value.equals(hex, ignoreCase = true), name = name) {
+                    custom = false
+                    onChange(value)
                 }
             }
+            val customColors = if (custom) tagColors(hex)
+            else ToggleColors(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.colorScheme.onSurfaceVariant)
+            Swatch(customColors, selected = custom, name = "Custom colour", icon = TasksIcons.Palette) { custom = true }
         }
-        Spacer(Modifier.height(10.dp))
-        OutlinedTextField(
-            value = hex,
-            onValueChange = { onChange(it.trim()) },
-            singleLine = true,
-            shape = RoundedCornerShape(16.dp),
-            prefix = {
-                Box(
-                    Modifier.padding(end = 8.dp).size(16.dp).clip(RoundedCornerShape(5.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(5.dp)),
-                ) { Surface(color = parseHex(hex, Color.Transparent), modifier = Modifier.size(16.dp)) {} }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
+        AnimatedVisibility(custom) {
+            val valid = HEX.matches(hex)
+            OutlinedTextField(
+                value = hex,
+                onValueChange = { onChange(it.trim()) },
+                label = { Text("Hex") },
+                isError = !valid,
+                supportingText = if (valid) null else ({ Text("Use a hex colour like #4a5ba8") }),
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+            )
+        }
     }
 }
 
-private fun Color.isLight() = 0.2126f * red + 0.7152f * green + 0.0722f * blue > 0.6f
+@Composable
+private fun Swatch(colors: ToggleColors, selected: Boolean, name: String, icon: ImageVector? = null, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .selectable(selected, role = Role.RadioButton, onClick = onClick)
+            .semantics { contentDescription = name },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) Box(Modifier.size(46.dp).border(2.dp, colors.content, CircleShape))
+        Box(Modifier.size(38.dp).background(colors.container, CircleShape), contentAlignment = Alignment.Center) {
+            when {
+                selected -> Icon(TasksIcons.Check, null, tint = colors.content, modifier = Modifier.size(20.dp))
+                icon != null -> Icon(icon, null, tint = colors.content, modifier = Modifier.size(20.dp))
+                else -> Box(Modifier.size(12.dp).background(colors.content, CircleShape))
+            }
+        }
+    }
+}

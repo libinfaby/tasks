@@ -1,6 +1,5 @@
 package dev.libinfaby.tasks.ui.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -19,7 +18,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import dev.libinfaby.tasks.ui.theme.isDark
@@ -32,35 +30,26 @@ fun parseHex(hex: String?, fallback: Color = Color(0xFF6366F1)): Color = runCatc
 
 fun Color.toHex(): String = String.format("#%06x", (android.graphics.Color.argb(alpha, red, green, blue)) and 0xFFFFFF)
 
-data class ChipColors(val background: Color, val content: Color, val filled: Boolean)
-
-private fun contrast(a: Color, b: Color): Float {
-    val la = a.luminance()
-    val lb = b.luminance()
-    return (maxOf(la, lb) + 0.05f) / (minOf(la, lb) + 0.05f)
-}
+/** No real hue (greys, white, black): such tags read as neutral chips. */
+private fun Color.isNeutral() = maxOf(red, green, blue) - minOf(red, green, blue) < 0.12f
 
 /**
- * Same rules as getChipStyle() in frontend/js/utils.js: filled chips use the chosen colours; unfilled
- * chips use the colour as text, falling back to a neutral text colour when it would be unreadable on
- * the current surface (e.g. white text in light mode).
+ * Material 3 tag chip colours: a soft container in the tag's hue with darker (light theme) or lighter
+ * (dark theme) text of the same hue, laid over the card. Neutral colours use the theme's own neutral
+ * chip, so only tags with a real colour draw the eye. The tag's stored fill and text colour are for the web.
  */
 @Composable
-fun chipColors(
-    color: String?,
-    fgColor: String?,
-    hasBg: Int?,
-    typeColor: String? = null,
-    typeFgColor: String? = null,
-    typeHasBg: Int? = null,
-): ChipColors {
-    val bg = parseHex(color ?: typeColor)
-    val fg = parseHex(fgColor ?: typeFgColor, Color.White)
-    val filled = (hasBg ?: typeHasBg ?: 1) != 0
-    if (filled) return ChipColors(bg, fg, true)
-    val surface = MaterialTheme.colorScheme.surfaceContainer
-    val text = if (contrast(bg, surface) >= 2.2f) bg else MaterialTheme.colorScheme.onSurfaceVariant
-    return ChipColors(Color.Transparent, text, false)
+fun tagColors(color: String?, typeColor: String? = null): ToggleColors {
+    val hue = parseHex(color ?: typeColor)
+    if (hue.isNeutral()) {
+        return ToggleColors(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    val card = MaterialTheme.colorScheme.surfaceContainer
+    return if (MaterialTheme.isDark) {
+        ToggleColors(hue.copy(alpha = 0.3f).compositeOver(card), lerp(hue, Color.White, 0.65f))
+    } else {
+        ToggleColors(hue.copy(alpha = 0.16f).compositeOver(card), lerp(hue, Color.Black, 0.5f))
+    }
 }
 
 /**
@@ -69,6 +58,10 @@ fun chipColors(
  */
 @Composable
 fun tonalColors(color: Color): ToggleColors {
+    // White, black and greys have no hue to tint with; use the theme's neutral pair so icons stay readable
+    if (color.isNeutral()) {
+        return ToggleColors(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.colorScheme.onSurfaceVariant)
+    }
     val surface = MaterialTheme.colorScheme.surface
     return if (MaterialTheme.isDark) {
         ToggleColors(color.copy(alpha = 0.34f).compositeOver(surface), lerp(color, Color.White, 0.72f))
@@ -77,33 +70,25 @@ fun tonalColors(color: Color): ToggleColors {
     }
 }
 
-/** Tag/group chip: 24dp, 8dp corners (pill for kind tags). Unfilled chips get a hairline outline. */
+/** Tag chip: 24dp, 8dp corners, tonal, no outline. [label] prefixes the tag type where it helps. */
 @Composable
 fun Chip(
     text: String,
-    colors: ChipColors,
+    colors: ToggleColors,
     modifier: Modifier = Modifier,
     label: String? = null,
-    pill: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) {
-    val shape = RoundedCornerShape(if (pill) 12.dp else 8.dp)
-    val border = when {
-        !colors.filled -> BorderStroke(1.dp, colors.content.copy(alpha = 0.45f))
-        // A fill close to the surface (black in dark mode, white in light) would lose its edge
-        contrast(colors.background, MaterialTheme.colorScheme.surfaceContainer) < 1.6f -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-        else -> null
-    }
+    val shape = RoundedCornerShape(8.dp)
     Surface(
         shape = shape,
-        color = colors.background,
+        color = colors.container,
         contentColor = colors.content,
-        border = border,
         // A plain clickable, not Surface(onClick): chips sit in dense rows and must stay 24dp tall
         modifier = modifier.clip(shape).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
     ) {
         Row(Modifier.height(24.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (label != null) Text("$label ", style = MaterialTheme.typography.labelSmall, color = colors.content.copy(alpha = 0.72f), maxLines = 1)
+            if (label != null) Text("$label ", style = MaterialTheme.typography.labelSmall, color = colors.content.copy(alpha = 0.7f), maxLines = 1)
             Text(text, style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
     }

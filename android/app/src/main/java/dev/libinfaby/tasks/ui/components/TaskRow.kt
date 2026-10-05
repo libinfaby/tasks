@@ -171,18 +171,18 @@ fun TaskRow(
             Column(modifier = Modifier.weight(1f).padding(top = 12.dp).alpha(fade)) {
                 Text(
                     task.title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
                     color = if (done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                     textDecoration = if (done) TextDecoration.LineThrough else null,
                 )
                 if (!task.details.isNullOrBlank()) {
                     Text(
-                        task.details,
+                        task.details.trim(),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
+                        maxLines = 4,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp),
+                        modifier = Modifier.padding(top = 8.dp),
                     )
                 }
                 TaskMeta(task, showGroup, showDate, onTagClick)
@@ -202,9 +202,9 @@ private fun TaskMeta(task: TaskDto, showGroup: Boolean, showDate: Boolean, onTag
     val hasMeta = task.priority > 0 || group != null || date != null || task.reminder != null || task.tags.isNotEmpty()
     if (!hasMeta) return
     FlowRow(
-        modifier = Modifier.padding(top = 6.dp),
+        modifier = Modifier.padding(top = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         // Urgency is spelled out too, so it never rests on the ring colour alone
         if (task.priority > 0) MetaItem(TasksIcons.FireFilled, "Urgent", MaterialTheme.colorScheme.error)
@@ -227,9 +227,9 @@ private fun TaskMeta(task: TaskDto, showGroup: Boolean, showDate: Boolean, onTag
         }
         task.tags.sortedBy { it.rank() }.forEach { tag ->
             val kind = tag.isKind()
-            val colors = chipColors(tag.color, tag.fgColor, if (kind) 1 else tag.hasBg, tag.typeColor)
+            val colors = tagColors(tag.color, tag.typeColor)
             val nameOnly = kind || tag.typeName.orEmpty().lowercase() in NAME_ONLY_TYPES
-            Chip(tag.name, colors, label = if (nameOnly) null else tag.typeName ?: "Tag", pill = kind, onClick = { onTagClick(tag) })
+            Chip(tag.name, colors, label = if (nameOnly) null else tag.typeName ?: "Tag", onClick = { onTagClick(tag) })
         }
     }
 }
@@ -241,7 +241,7 @@ private fun SubtaskPreview(subtasks: List<SubtaskDto>, onToggle: (SubtaskDto) ->
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.padding(top = 10.dp).fillMaxWidth(),
+        modifier = Modifier.padding(top = 14.dp).fillMaxWidth(),
     ) {
         Column(Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

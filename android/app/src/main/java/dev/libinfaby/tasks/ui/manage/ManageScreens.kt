@@ -32,7 +32,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -58,13 +57,12 @@ import dev.libinfaby.tasks.data.api.userMessage
 import dev.libinfaby.tasks.data.repo.TasksRepository
 import dev.libinfaby.tasks.ui.components.BackTopBar
 import dev.libinfaby.tasks.ui.components.Chip
-import dev.libinfaby.tasks.ui.components.ChipColors
 import dev.libinfaby.tasks.ui.components.ColorField
 import dev.libinfaby.tasks.ui.components.ConfirmDialog
 import dev.libinfaby.tasks.ui.components.ConnectedItem
 import dev.libinfaby.tasks.ui.components.EmptyState
 import dev.libinfaby.tasks.ui.components.ListRow
-import dev.libinfaby.tasks.ui.components.chipColors
+import dev.libinfaby.tasks.ui.components.tagColors
 import dev.libinfaby.tasks.ui.components.parseHex
 import dev.libinfaby.tasks.ui.components.tonalColors
 import dev.libinfaby.tasks.ui.theme.TasksIcons
@@ -173,7 +171,7 @@ fun TagsScreen(vm: ManageViewModel, onBack: () -> Unit) {
                         }
                         FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             type.tags.forEach { tag ->
-                                Chip(tag.name, chipColors(tag.color, tag.fgColor, tag.hasBg, type.color, type.fgColor, type.hasBg), onClick = { editTag = type to tag })
+                                Chip(tag.name, tagColors(tag.color, type.color), onClick = { editTag = type to tag })
                             }
                             Surface(
                                 onClick = { editTag = type to null },
@@ -198,7 +196,7 @@ fun TagsScreen(vm: ManageViewModel, onBack: () -> Unit) {
         val t = editType
         StyleDialog(
             title = if (t == null) "New tag type" else "Edit tag type",
-            initial = ChipStyle(t?.name.orEmpty(), t?.color ?: "#5b5bd6", t?.fgColor ?: "#ffffff", (t?.hasBg ?: 1) != 0, t?.icon.orEmpty()),
+            initial = ChipStyle(t?.name.orEmpty(), t?.color ?: "#6f6aa8", t?.fgColor ?: "#ffffff", (t?.hasBg ?: 1) != 0, t?.icon.orEmpty()),
             withIcon = true,
             applyAllCount = t?.tags?.size ?: 0,
             onDismiss = { newType = false; editType = null },
@@ -264,14 +262,14 @@ fun GroupsScreen(vm: ManageViewModel, onBack: () -> Unit) {
         val g = editing
         StyleDialog(
             title = if (g == null) "New group" else "Edit group",
-            initial = ChipStyle(g?.name.orEmpty(), g?.color ?: "#8b5cf6", g?.fgColor ?: "#ffffff", (g?.hasBg ?: 1) != 0),
+            initial = ChipStyle(g?.name.orEmpty(), g?.color ?: "#8c6d9e", g?.fgColor ?: "#ffffff", (g?.hasBg ?: 1) != 0),
             onDismiss = { creating = false; editing = null },
         ) { s, _ -> vm.saveGroup(g?.id, GroupWrite(s.name, s.color, s.fg, s.filled)) }
     }
     deleting?.let { g -> ConfirmDialog("Delete \"${g.name}\"?", "Tasks in it will be ungrouped.", "Delete", onDismiss = { deleting = null }) { vm.deleteGroup(g.id) } }
 }
 
-/** Name + colours (+ icon for tag types) with a live chip preview, like the web modals. */
+/** Name + colour (+ icon for tag types) with a live chip preview. */
 @Composable
 private fun StyleDialog(
     title: String,
@@ -289,11 +287,10 @@ private fun StyleDialog(
         title = { Text(title) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Chip(s.name.ifBlank { "Preview" }, if (s.filled) ChipColors(parseHex(s.color), parseHex(s.fg, Color.White), true) else chipColors(s.color, s.fg, 0))
+                Chip(s.name.ifBlank { "Preview" }, tagColors(s.color))
                 OutlinedTextField(s.name, { s = s.copy(name = it) }, label = { Text("Name") }, singleLine = true, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth())
+                // Text colour and fill are kept as they are: only the website draws them
                 ColorField("Colour", s.color) { s = s.copy(color = it) }
-                ColorField("Text colour", s.fg) { s = s.copy(fg = it) }
-                SwitchRow("Filled background", s.filled) { s = s.copy(filled = it) }
                 if (withIcon) {
                     OutlinedTextField(s.icon, { s = s.copy(icon = it.take(4)) }, label = { Text("Icon (emoji)") }, singleLine = true, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth())
                 }
@@ -315,12 +312,4 @@ private fun StyleDialog(
             }
         },
     )
-}
-
-@Composable
-private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Switch(checked, onChange)
-    }
 }

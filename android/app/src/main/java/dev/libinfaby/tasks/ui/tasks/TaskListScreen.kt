@@ -77,7 +77,7 @@ import dev.libinfaby.tasks.ui.theme.TasksIcons
 import kotlinx.coroutines.launch
 
 /**
- * One task view. Root tabs (Today, Upcoming, All tasks) open with a search bar and a header; a group
+ * One task view. Root tabs (All tasks, Today, Upcoming) open with a search bar and a header; a group
  * view ([onBack] set) gets a back arrow instead.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -208,7 +208,7 @@ private fun LazyListScope.sections(
                     onToggle = { vm.toggle(task, onCompleted) },
                     onToggleSubtask = { vm.toggleSubtask(it.id) },
                     onTagClick = { vm.setTagFilter(it.id, it.name) },
-                    modifier = Modifier.padding(bottom = 3.dp).animateItem(),
+                    modifier = Modifier.padding(bottom = 6.dp).animateItem(),
                 )
             }
         }
@@ -223,7 +223,7 @@ private fun SectionTitle(section: Section, onOpenGroup: (TaskView.Group) -> Unit
         SectionKind.OVERDUE -> Triple(TasksIcons.Alarm, ToggleColors(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer), RoundedCornerShape(10.dp))
         SectionKind.URGENT -> Triple(TasksIcons.FireFilled, ToggleColors(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer), RoundedCornerShape(10.dp))
         SectionKind.GROUP -> Triple(TasksIcons.GroupFilled, tonalColors(parseHex(section.group?.color)), RoundedCornerShape(15.dp, 15.dp, 15.dp, 5.dp))
-        SectionKind.DAY -> Triple(TasksIcons.Calendar, ToggleColors(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer), RoundedCornerShape(10.dp))
+        SectionKind.DAY -> Triple(TasksIcons.Calendar, ToggleColors(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer), RoundedCornerShape(10.dp))
         else -> Triple(TasksIcons.TaskAlt, ToggleColors(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer), RoundedCornerShape(15.dp))
     }
     val group = section.group
@@ -354,8 +354,8 @@ private fun SearchPill(
                 Surface(
                     onClick = onOpenMenu,
                     shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.padding(end = 8.dp).size(40.dp).semantics { contentDescription = "Menu: groups, tags and settings" },
                 ) {
                     Box(contentAlignment = Alignment.Center) { Icon(TasksIcons.Menu, null) }

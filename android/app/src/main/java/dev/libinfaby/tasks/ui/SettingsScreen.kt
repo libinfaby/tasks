@@ -99,8 +99,8 @@ fun SettingsScreen(
                     "Wallpaper colours",
                     supporting = if (settings.wallpaperColors) "Colours follow your wallpaper" else "Using the monochrome palette",
                     icon = TasksIcons.Palette,
-                    iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
-                    iconContent = MaterialTheme.colorScheme.onTertiaryContainer,
+                    iconContainer = MaterialTheme.colorScheme.primaryContainer,
+                    iconContent = MaterialTheme.colorScheme.onPrimaryContainer,
                 ) {
                     Switch(settings.wallpaperColors, onWallpaperColors, thumbContent = if (settings.wallpaperColors) ({ Icon(TasksIcons.Check, null, modifier = Modifier.size(16.dp)) }) else null)
                 }

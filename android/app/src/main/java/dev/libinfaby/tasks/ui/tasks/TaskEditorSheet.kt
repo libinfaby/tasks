@@ -65,7 +65,6 @@ import dev.libinfaby.tasks.data.api.PRIORITY_URGENT
 import dev.libinfaby.tasks.data.api.TagTypeDto
 import dev.libinfaby.tasks.domain.Dates
 import dev.libinfaby.tasks.domain.RepeatRule
-import dev.libinfaby.tasks.ui.components.ChipColors
 import dev.libinfaby.tasks.ui.components.ConfirmDialog
 import dev.libinfaby.tasks.ui.components.ConnectedColumn
 import dev.libinfaby.tasks.ui.components.ConnectedItem
@@ -75,7 +74,7 @@ import dev.libinfaby.tasks.ui.components.FieldLabel
 import dev.libinfaby.tasks.ui.components.ListRow
 import dev.libinfaby.tasks.ui.components.TimePickerDialogFor
 import dev.libinfaby.tasks.ui.components.ToggleColors
-import dev.libinfaby.tasks.ui.components.chipColors
+import dev.libinfaby.tasks.ui.components.tagColors
 import dev.libinfaby.tasks.ui.components.parseHex
 import dev.libinfaby.tasks.ui.components.tonalColors
 import dev.libinfaby.tasks.ui.theme.TasksIcons
@@ -374,8 +373,8 @@ private fun ReminderCard(
                 title = "Reminder",
                 supporting = label ?: "Off",
                 icon = TasksIcons.Alarm,
-                iconContainer = MaterialTheme.colorScheme.tertiaryContainer,
-                iconContent = MaterialTheme.colorScheme.onTertiaryContainer,
+                iconContainer = MaterialTheme.colorScheme.primaryContainer,
+                iconContent = MaterialTheme.colorScheme.onPrimaryContainer,
             ) {
                 Switch(
                     checked = on,
@@ -412,10 +411,8 @@ private fun SelectedTags(tagTypes: List<TagTypeDto>, selected: Set<Long>, onRemo
     val chosen = tagTypes.flatMap { type -> type.tags.filter { it.id in selected }.map { type to it } }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         chosen.forEach { (type, tag) ->
-            val colors = chipColors(tag.color, tag.fgColor, tag.hasBg, type.color, type.fgColor, type.hasBg)
-            val container = if (colors.filled) colors.background else MaterialTheme.colorScheme.secondaryContainer
-            val content = if (colors.filled) colors.content else MaterialTheme.colorScheme.onSecondaryContainer
-            Surface(shape = RoundedCornerShape(10.dp), color = container, contentColor = content, modifier = Modifier.height(36.dp)) {
+            val colors = tagColors(tag.color, type.color)
+            Surface(shape = RoundedCornerShape(10.dp), color = colors.container, contentColor = colors.content, modifier = Modifier.height(36.dp)) {
                 Row(Modifier.padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(tag.name, style = MaterialTheme.typography.labelLarge)
                     IconButton(onClick = { onRemove(tag.id) }, modifier = Modifier.size(36.dp)) {
@@ -466,7 +463,7 @@ private fun TagPickerSheet(
     }
 }
 
-/** Tag options grouped by type: outlined when off, filled when on (as on the web form). */
+/** Tag options grouped by type: outlined when off, a tonal chip in the tag's colour when on. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TagSelector(tagTypes: List<TagTypeDto>, selected: Set<Long>, onToggle: (Long) -> Unit, onCreate: ((TagTypeDto, String) -> Unit)? = null) {
@@ -494,7 +491,7 @@ fun TagSelector(tagTypes: List<TagTypeDto>, selected: Set<Long>, onToggle: (Long
                 } else {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         type.tags.forEach { tag ->
-                            TagOption(tag.name, chipColors(tag.color, tag.fgColor, tag.hasBg, type.color, type.fgColor, type.hasBg), tag.id in selected) {
+                            TagOption(tag.name, tagColors(tag.color, type.color), tag.id in selected) {
                                 onToggle(tag.id)
                             }
                         }
@@ -509,10 +506,8 @@ fun TagSelector(tagTypes: List<TagTypeDto>, selected: Set<Long>, onToggle: (Long
 }
 
 @Composable
-private fun TagOption(name: String, colors: ChipColors, selected: Boolean, onClick: () -> Unit) {
+private fun TagOption(name: String, colors: ToggleColors, selected: Boolean, onClick: () -> Unit) {
     val corner by animateDpAsState(if (selected) 18.dp else 10.dp, label = "tag")
-    val selectedContainer = if (colors.filled) colors.background else MaterialTheme.colorScheme.secondaryContainer
-    val selectedContent = if (colors.filled) colors.content else MaterialTheme.colorScheme.onSecondaryContainer
     FilterChip(
         selected = selected,
         onClick = onClick,
@@ -520,10 +515,9 @@ private fun TagOption(name: String, colors: ChipColors, selected: Boolean, onCli
         leadingIcon = if (selected) ({ Icon(TasksIcons.Check, null, modifier = Modifier.size(18.dp)) }) else null,
         shape = RoundedCornerShape(corner),
         colors = FilterChipDefaults.filterChipColors(
-            labelColor = if (colors.filled) MaterialTheme.colorScheme.onSurfaceVariant else colors.content,
-            selectedContainerColor = selectedContainer,
-            selectedLabelColor = selectedContent,
-            selectedLeadingIconColor = selectedContent,
+            selectedContainerColor = colors.container,
+            selectedLabelColor = colors.content,
+            selectedLeadingIconColor = colors.content,
         ),
         modifier = Modifier.height(36.dp),
     )

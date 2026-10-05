@@ -186,7 +186,7 @@ fun DailyScreen(vm: DailyViewModel, report: Boolean, onReport: (Boolean) -> Unit
                                     Dates.parseDate(day)?.let(Dates::longLabel) ?: day,
                                     Modifier.weight(1f),
                                     icon = TasksIcons.Calendar,
-                                    tile = ToggleColors(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer),
+                                    tile = ToggleColors(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer),
                                     tileShape = RoundedCornerShape(10.dp),
                                     trailing = "${entries.size}",
                                 )
