@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Screens. Root ones sit on the bottom bar; the rest open from the menu and go back to the last root. */
+/** Screens. Root ones sit on the bottom bar; the rest open from the menu and stack on top of it. */
 sealed interface Destination {
     val isRoot: Boolean get() = false
 
@@ -32,6 +32,7 @@ sealed interface Destination {
     data class Daily(val report: Boolean) : Destination {
         override val isRoot get() = true
     }
+    data object Menu : Destination
     data object Tags : Destination
     data object Groups : Destination
     data object Settings : Destination
@@ -58,9 +59,10 @@ class AppViewModel @Inject constructor(
         .map { tasks -> tasks.filter { it.groupId != null }.groupingBy { it.groupId!! }.eachCount() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
-    private val _destination = MutableStateFlow(Destination.Start)
-    val destination: StateFlow<Destination> = _destination
-    private var lastRoot = Destination.Start
+    /** The way back: a root tab first, then any screens opened on top of it. */
+    private val _stack = MutableStateFlow(listOf(Destination.Start))
+    val stack: StateFlow<List<Destination>> = _stack
+    val destination: Destination get() = _stack.value.last()
     val editor = MutableStateFlow<EditorRequest?>(null)
 
     private val _signInError = MutableStateFlow<String?>(null)
@@ -91,21 +93,23 @@ class AppViewModel @Inject constructor(
         }
     }
 
+    /** A tab replaces the whole stack; any other screen opens on top of the current one. */
     fun go(d: Destination) {
-        if (d.isRoot) lastRoot = d
-        _destination.value = d
+        _stack.value = if (d.isRoot) listOf(d) else _stack.value + d
     }
 
-    /** Back: a menu screen returns to the last tab, another tab returns to All tasks. False when already there. */
+    /** Back: close the top screen, or return from another tab to All tasks. False when already there. */
     fun back(): Boolean = when {
-        !_destination.value.isRoot -> { _destination.value = lastRoot; true }
-        _destination.value != Destination.Start -> { go(Destination.Start); true }
+        _stack.value.size > 1 -> { _stack.value = _stack.value.dropLast(1); true }
+        destination != Destination.Start -> { go(Destination.Start); true }
         else -> false
     }
 
     fun setTheme(mode: ThemeMode) = viewModelScope.launch { settingsRepo.setTheme(mode) }
 
     fun setWallpaperColors(on: Boolean) = viewModelScope.launch { settingsRepo.setWallpaperColors(on) }
+
+    fun setDefaultGroup(id: Long?) = viewModelScope.launch { settingsRepo.setDefaultGroup(id) }
 
     fun openNewTask() { editor.value = EditorRequest(null) }
 

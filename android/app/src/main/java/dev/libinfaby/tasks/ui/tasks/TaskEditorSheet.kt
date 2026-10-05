@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -245,23 +246,20 @@ private fun TitleAndDetails(title: String, details: String, autofocus: Boolean, 
                 modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = "Title" },
             )
         }
-        // A roomy box for notes: five lines tall to start, growing as they write
-        Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-                Icon(TasksIcons.Notes, null, tint = muted)
-                Spacer(Modifier.width(12.dp))
-                Box(Modifier.weight(1f)) {
-                    if (details.isEmpty()) Text("Add details", style = MaterialTheme.typography.bodyLarge, color = muted)
-                    BasicTextField(
-                        value = details,
-                        onValueChange = onDetails,
-                        minLines = 5,
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Details" },
-                    )
-                }
+        // One line of notes under the title, growing with each line they write
+        Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.Top) {
+            Icon(TasksIcons.Notes, null, tint = muted)
+            Spacer(Modifier.width(12.dp))
+            Box(Modifier.weight(1f)) {
+                if (details.isEmpty()) Text("Add details", style = MaterialTheme.typography.bodyLarge, color = muted)
+                BasicTextField(
+                    value = details,
+                    onValueChange = onDetails,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Details" },
+                )
             }
         }
     }
@@ -404,19 +402,23 @@ private fun ReminderCard(
     }
 }
 
-/** The task's tags as removable chips, plus an Add tag chip that opens the picker. */
+/** The task's tags as removable chips, with an Add tag chip that opens the picker on its own line below. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SelectedTags(tagTypes: List<TagTypeDto>, selected: Set<Long>, onRemove: (Long) -> Unit, onAdd: () -> Unit) {
     val chosen = tagTypes.flatMap { type -> type.tags.filter { it.id in selected }.map { type to it } }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        chosen.forEach { (type, tag) ->
-            val colors = tagColors(tag.color, type.color)
-            Surface(shape = RoundedCornerShape(10.dp), color = colors.container, contentColor = colors.content, modifier = Modifier.height(36.dp)) {
-                Row(Modifier.padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(tag.name, style = MaterialTheme.typography.labelLarge)
-                    IconButton(onClick = { onRemove(tag.id) }, modifier = Modifier.size(36.dp)) {
-                        Icon(TasksIcons.Close, "Remove tag ${tag.name}", modifier = Modifier.size(18.dp))
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (chosen.isNotEmpty()) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                chosen.forEach { (type, tag) ->
+                    val colors = tagColors(tag.color, type.color)
+                    Surface(shape = RoundedCornerShape(10.dp), color = colors.container, contentColor = colors.content, modifier = Modifier.height(36.dp)) {
+                        Row(Modifier.padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(tag.name, style = MaterialTheme.typography.labelLarge)
+                            IconButton(onClick = { onRemove(tag.id) }, modifier = Modifier.size(36.dp)) {
+                                Icon(TasksIcons.Close, "Remove tag ${tag.name}", modifier = Modifier.size(18.dp))
+                            }
+                        }
                     }
                 }
             }
@@ -570,12 +572,15 @@ private fun SubtaskEditor(rows: List<SubtaskRow>, tagTypes: List<TagTypeDto>, vm
                 }
             }
         }
+        // Sized like the Reminder card above it: an icon tile and a full-size label
         ConnectedItem(rows.size, count, onClick = { vm.addSubtask() }) {
-            Row(Modifier.height(52.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(TasksIcons.Add, null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(12.dp))
-                Text("Add subtask", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-            }
+            ListRow(
+                "Add subtask",
+                icon = TasksIcons.Add,
+                iconContainer = MaterialTheme.colorScheme.primaryContainer,
+                iconContent = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.heightIn(min = 72.dp),
+            )
         }
     }
 }

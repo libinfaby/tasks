@@ -46,6 +46,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.libinfaby.tasks.data.api.SubtaskDto
 import dev.libinfaby.tasks.data.api.TagDto
 import dev.libinfaby.tasks.data.api.TaskDto
@@ -171,7 +172,7 @@ fun TaskRow(
             Column(modifier = Modifier.weight(1f).padding(top = 12.dp).alpha(fade)) {
                 Text(
                     task.title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, lineHeight = 23.sp),
                     color = if (done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                     textDecoration = if (done) TextDecoration.LineThrough else null,
                 )

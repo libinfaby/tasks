@@ -76,6 +76,30 @@ class ScallopShape(private val lobes: Int = 8, private val depth: Float = 0.12f)
 
 val Scallop = ScallopShape()
 
+/** An uneven, hand-drawn circle: a few slow swells in the radius, scaled to fill the bounds. */
+object PebbleShape : Shape {
+    // (lobes, amplitude, phase) of each swell, relative to the radius
+    private val swells = listOf(Triple(2, 0.05, 0.6), Triple(3, 0.035, 1.9), Triple(5, 0.015, 0.3))
+    private const val STEPS = 180
+
+    private fun wobble(a: Double) = 1 + swells.sumOf { (n, amp, phase) -> amp * cos(n * a + phase) }
+
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val peak = (0 until STEPS).maxOf { wobble(it * 2 * PI / STEPS) }
+        val radius = min(size.width, size.height) / 2 / peak
+        val path = Path()
+        for (i in 0..STEPS) {
+            val a = i * 2 * PI / STEPS
+            val r = radius * wobble(a)
+            val x = (size.width / 2 + r * cos(a)).toFloat()
+            val y = (size.height / 2 + r * sin(a)).toFloat()
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        path.close()
+        return Outline.Generic(path)
+    }
+}
+
 /** Shape of item [index] of [count] in a connected list: big outer corners, small inner ones. */
 fun connectedShape(index: Int, count: Int, outer: Dp = 24.dp, inner: Dp = 6.dp): RoundedCornerShape {
     val top = if (index == 0) outer else inner

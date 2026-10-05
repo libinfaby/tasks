@@ -57,10 +57,11 @@ class TaskEditorViewModel @Inject constructor(private val repo: TasksRepository)
 
     private var nextKey = 0L
 
-    fun open(task: TaskDto?) {
+    /** Loads [task] for editing, or starts a new task in [defaultGroupId] (the Settings choice). */
+    fun open(task: TaskDto?, defaultGroupId: Long? = null) {
         _draft.value = if (task == null) {
             // New tasks default to today, like the web form
-            TaskDraft(date = Dates.today())
+            TaskDraft(date = Dates.today(), groupId = defaultGroupId)
         } else {
             TaskDraft(
                 original = task,
@@ -74,6 +75,12 @@ class TaskEditorViewModel @Inject constructor(private val repo: TasksRepository)
                 tagIds = task.tags.map { it.id }.toSet(),
                 subtasks = task.subtasks.map { SubtaskRow(nextKey++, it.id, it.title, it.tags.map { t -> t.id }.toSet()) },
             )
+        }
+        // A default group deleted since it was chosen falls back to no group
+        if (task == null && defaultGroupId != null) viewModelScope.launch {
+            if (repo.groups.first().none { it.id == defaultGroupId }) {
+                _draft.update { if (it.original == null && it.groupId == defaultGroupId) it.copy(groupId = null) else it }
+            }
         }
     }
 

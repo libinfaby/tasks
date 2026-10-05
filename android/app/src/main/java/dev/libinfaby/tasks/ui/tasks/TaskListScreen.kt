@@ -322,7 +322,7 @@ private fun EmptyFor(view: TaskView, filtered: Boolean, done: Boolean) {
 
 /**
  * The search bar: a pill that opens into a field with a type menu (task name / any tag / date / a
- * specific tag type), like the web header. The face on the right opens the account menu.
+ * specific tag type), like the web header. The button on the right opens the menu.
  */
 @Composable
 private fun SearchPill(
@@ -351,14 +351,8 @@ private fun SearchPill(
                         Text("Search tasks and tags", style = MaterialTheme.typography.bodyLarge)
                     }
                 }
-                Surface(
-                    onClick = onOpenMenu,
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(end = 8.dp).size(40.dp).semantics { contentDescription = "Menu: groups, tags and settings" },
-                ) {
-                    Box(contentAlignment = Alignment.Center) { Icon(TasksIcons.Menu, null) }
+                IconButton(onClick = onOpenMenu, modifier = Modifier.padding(end = 4.dp)) {
+                    Icon(TasksIcons.MenuSteps, "Menu: groups, tags and settings", tint = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }

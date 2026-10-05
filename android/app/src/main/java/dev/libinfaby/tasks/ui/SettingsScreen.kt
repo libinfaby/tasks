@@ -9,6 +9,7 @@ import android.os.PowerManager
 import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -20,7 +21,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,15 +36,17 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import androidx.compose.material3.ButtonDefaults
+import dev.libinfaby.tasks.data.api.GroupDto
 import dev.libinfaby.tasks.data.settings.Settings
 import dev.libinfaby.tasks.data.settings.ThemeMode
 import dev.libinfaby.tasks.reminders.Notifications
@@ -50,6 +57,8 @@ import dev.libinfaby.tasks.ui.components.ConnectedItem
 import dev.libinfaby.tasks.ui.components.ConnectedToggleGroup
 import dev.libinfaby.tasks.ui.components.FieldLabel
 import dev.libinfaby.tasks.ui.components.ListRow
+import dev.libinfaby.tasks.ui.components.parseHex
+import dev.libinfaby.tasks.ui.components.tonalColors
 import dev.libinfaby.tasks.ui.theme.TasksIcons
 import java.text.DateFormat
 import java.util.Date
@@ -60,6 +69,8 @@ fun SettingsScreen(
     settings: Settings,
     onTheme: (ThemeMode) -> Unit,
     onWallpaperColors: (Boolean) -> Unit,
+    groups: List<GroupDto>,
+    onDefaultGroup: (Long?) -> Unit,
     onSignOut: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -107,6 +118,10 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(28.dp))
+            FieldLabel("Tasks", Modifier.padding(start = 4.dp))
+            DefaultGroupItem(groups, settings.defaultGroupId, onDefaultGroup)
+
+            Spacer(Modifier.height(28.dp))
             FieldLabel("Reminders", Modifier.padding(start = 4.dp))
             ConnectedColumn {
                 StatusItem(0, TasksIcons.Notifications, "Notifications", if (canNotify) "Allowed" else "Off, so reminders can't be shown", canNotify, "Allow") {
@@ -152,6 +167,45 @@ fun SettingsScreen(
                 Icon(TasksIcons.Logout, null)
                 Spacer(Modifier.width(8.dp))
                 Text("Sign out", style = MaterialTheme.typography.titleMedium)
+            }
+        }
+    }
+}
+
+/** The group every new task starts in, picked from a menu. A deleted group reads as none. */
+@Composable
+private fun DefaultGroupItem(groups: List<GroupDto>, selectedId: Long?, onPick: (Long?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val current = groups.firstOrNull { it.id == selectedId }
+    val tint = current?.let { tonalColors(parseHex(it.color)) }
+    Box {
+        ConnectedItem(0, 1, onClick = { open = true }) {
+            ListRow(
+                "Default group",
+                supporting = current?.let { "New tasks start in ${it.name}" } ?: "New tasks start without a group",
+                icon = TasksIcons.GroupFilled,
+                iconContainer = tint?.container ?: MaterialTheme.colorScheme.primaryContainer,
+                iconContent = tint?.content ?: MaterialTheme.colorScheme.onPrimaryContainer,
+                iconShape = RoundedCornerShape(15.dp, 15.dp, 15.dp, 5.dp),
+            ) {
+                Text(current?.name ?: "None", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                Icon(TasksIcons.DropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = RoundedCornerShape(16.dp), offset = DpOffset(16.dp, 0.dp)) {
+            DropdownMenuItem(
+                text = { Text("No group") },
+                leadingIcon = { Icon(TasksIcons.Block, null) },
+                trailingIcon = if (current == null) ({ Icon(TasksIcons.Check, null) }) else null,
+                onClick = { onPick(null); open = false },
+            )
+            groups.forEach { g ->
+                DropdownMenuItem(
+                    text = { Text(g.name) },
+                    leadingIcon = { Icon(TasksIcons.GroupFilled, null, tint = tonalColors(parseHex(g.color)).content) },
+                    trailingIcon = if (g.id == current?.id) ({ Icon(TasksIcons.Check, null) }) else null,
+                    onClick = { onPick(g.id); open = false },
+                )
             }
         }
     }

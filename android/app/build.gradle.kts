@@ -15,7 +15,7 @@ val keystoreProperties = Properties().apply {
     }
 }
 
-// Default API; can be changed on the sign-in screen. Override at build time with -Ptasks.apiBaseUrl=...
+// The API the app signs in to. Override at build time with -Ptasks.apiBaseUrl=...
 val apiBaseUrl = providers.gradleProperty("tasks.apiBaseUrl").getOrElse("https://tasks-api.libinfaby.dev/")
 
 android {

@@ -29,6 +29,8 @@ data class Settings(
     val apiUrl: String = BuildConfig.API_BASE_URL,
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val wallpaperColors: Boolean = false,
+    /** Group new tasks start in; null for none. */
+    val defaultGroupId: Long? = null,
     val lastSyncAt: Long = 0,
 ) {
     val signedIn get() = token != null
@@ -43,6 +45,7 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
         val apiUrl = stringPreferencesKey("api_url")
         val theme = stringPreferencesKey("theme")
         val wallpaperColors = booleanPreferencesKey("wallpaper_colors")
+        val defaultGroup = longPreferencesKey("default_group_id")
         val lastSync = longPreferencesKey("last_sync_at")
     }
 
@@ -52,6 +55,7 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
             apiUrl = p[Keys.apiUrl] ?: BuildConfig.API_BASE_URL,
             theme = p[Keys.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
             wallpaperColors = p[Keys.wallpaperColors] ?: false,
+            defaultGroupId = p[Keys.defaultGroup],
             lastSyncAt = p[Keys.lastSync] ?: 0,
         )
     }
@@ -67,6 +71,10 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
     suspend fun setTheme(mode: ThemeMode) = context.dataStore.edit { it[Keys.theme] = mode.name }
 
     suspend fun setWallpaperColors(on: Boolean) = context.dataStore.edit { it[Keys.wallpaperColors] = on }
+
+    suspend fun setDefaultGroup(id: Long?) = context.dataStore.edit {
+        if (id == null) it.remove(Keys.defaultGroup) else it[Keys.defaultGroup] = id
+    }
 
     suspend fun setLastSync(at: Long) = context.dataStore.edit { it[Keys.lastSync] = at }
 

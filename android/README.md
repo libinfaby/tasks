@@ -15,8 +15,8 @@ export JAVA_HOME=/snap/android-studio/current/jbr
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
-Debug builds may use plain HTTP to a local `wrangler dev` (`http://10.0.2.2:8787/` from the emulator — set it under
-**Advanced** on the sign-in screen). Release builds are HTTPS-only.
+Debug builds may use plain HTTP to a local `wrangler dev`: build with
+`-Ptasks.apiBaseUrl=http://10.0.2.2:8787/` (the emulator's view of the host). Release builds are HTTPS-only.
 
 For a stable release signature, add `keystore.properties` (git-ignored) with `storeFile`, `storePassword`,
 `keyAlias`, `keyPassword`.

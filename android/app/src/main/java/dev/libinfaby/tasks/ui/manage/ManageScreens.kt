@@ -169,10 +169,15 @@ fun TagsScreen(vm: ManageViewModel, onBack: () -> Unit) {
                             IconButton(onClick = { editType = type }) { Icon(TasksIcons.Edit, "Edit ${type.name}", modifier = Modifier.size(20.dp)) }
                             IconButton(onClick = { deleteType = type }) { Icon(TasksIcons.Delete, "Delete ${type.name}", modifier = Modifier.size(20.dp)) }
                         }
-                        FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            type.tags.forEach { tag ->
-                                Chip(tag.name, tagColors(tag.color, type.color), onClick = { editTag = type to tag })
+                        if (type.tags.isNotEmpty()) {
+                            FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                type.tags.forEach { tag ->
+                                    Chip(tag.name, tagColors(tag.color, type.color), onClick = { editTag = type to tag })
+                                }
                             }
+                        }
+                        // Always on its own line under the chips; its 48dp touch target already spaces it from them
+                        Box(Modifier.padding(start = 10.dp)) {
                             Surface(
                                 onClick = { editTag = type to null },
                                 shape = RoundedCornerShape(8.dp),
