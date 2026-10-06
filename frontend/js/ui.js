@@ -217,13 +217,15 @@ export function openMenu(anchor, items) {
     )),
   );
   document.body.appendChild(menu);
+  // Place it in screen pixels, then convert to the page's CSS zoom for left/top
+  const zoom = menu.currentCSSZoom || 1;
   const r = anchor.getBoundingClientRect();
-  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  const { width: mw, height: mh } = menu.getBoundingClientRect();
   let left = Math.min(r.right - mw, window.innerWidth - mw - 16);
   if (left < 16) left = Math.max(16, Math.min(r.left, window.innerWidth - mw - 16));
   let top = r.bottom + 4;
   if (top + mh > window.innerHeight - 16) top = Math.max(16, r.top - mh - 4);
-  Object.assign(menu.style, { left: `${left}px`, top: `${top}px` });
+  Object.assign(menu.style, { left: `${left / zoom}px`, top: `${top / zoom}px` });
   openMenuEl = menu;
   setTimeout(() => {
     document.addEventListener('pointerdown', outside, true);
