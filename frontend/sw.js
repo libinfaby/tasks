@@ -8,8 +8,8 @@ self.addEventListener('push', (event) => {
     const title = data.title || 'Tasks Reminder';
     const options = {
       body: data.body || 'You have a task reminder!',
-      icon: '/logo.svg',
-      badge: '/logo.svg',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
       vibrate: [100, 50, 100],
       data: {
         url: self.registration.scope

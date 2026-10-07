@@ -1,0 +1,6 @@
+<!-- The app icon: Lucide "list-checks" (ISC) in white on a black circle, as on the Android launcher -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72">
+  <circle cx="36" cy="36" r="36" fill="#000"/>
+  <path transform="translate(15 15) scale(1.75)" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    d="M3 17l2 2l4-4M3 7l2 2l4-4M13 6h8M13 12h8M13 18h8"/>
+</svg>
