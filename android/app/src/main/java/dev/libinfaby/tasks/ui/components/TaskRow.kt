@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -56,7 +57,6 @@ import dev.libinfaby.tasks.ui.theme.TasksIcons
 
 // Client first, then the kind chip (Issue/Requirement/Modification), then Project, Via, then the rest (as on web).
 private val KIND_TAG_NAMES = setOf("issue", "requirement", "modification")
-private val NAME_ONLY_TYPES = setOf("client", "project", "via")
 private val TAG_ORDER = listOf("client", "kind", "project", "via")
 
 private fun TagDto.isKind() = name.trim().lowercase() in KIND_TAG_NAMES
@@ -159,6 +159,7 @@ fun TaskRow(
     onToggle: () -> Unit,
     onToggleSubtask: (SubtaskDto) -> Unit,
     onTagClick: (TagDto) -> Unit,
+    onLogDaily: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val done = task.completed
@@ -188,6 +189,17 @@ fun TaskRow(
                 }
                 TaskMeta(task, showGroup, showDate, onTagClick)
                 if (task.subtasks.isNotEmpty()) SubtaskPreview(task.subtasks, onToggleSubtask)
+            }
+            // A done task can be logged any time, not only from the snackbar
+            if (done) {
+                IconButton(onClick = onLogDaily, modifier = Modifier.padding(start = 4.dp, top = 4.dp).offset(x = 8.dp).size(40.dp)) {
+                    Icon(
+                        TasksIcons.DailyLog,
+                        contentDescription = "Add ${task.title} to today's daily log",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
         }
     }
@@ -227,10 +239,7 @@ private fun TaskMeta(task: TaskDto, showGroup: Boolean, showDate: Boolean, onTag
             }
         }
         task.tags.sortedBy { it.rank() }.forEach { tag ->
-            val kind = tag.isKind()
-            val colors = tagColors(tag.color, tag.typeColor)
-            val nameOnly = kind || tag.typeName.orEmpty().lowercase() in NAME_ONLY_TYPES
-            Chip(tag.name, colors, label = if (nameOnly) null else tag.typeName ?: "Tag", onClick = { onTagClick(tag) })
+            Chip(tag.name, tagColors(tag.color, tag.typeColor), onClick = { onTagClick(tag) })
         }
     }
 }

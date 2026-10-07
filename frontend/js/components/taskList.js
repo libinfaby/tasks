@@ -14,8 +14,6 @@ import { store } from '../store.js';
 const TITLES = { all: 'All tasks', today: 'Today', upcoming: 'Upcoming' };
 // Tags named like this are the task's kind; they sort right after the client
 const KIND_TAG_NAMES = ['issue', 'requirement', 'modification'];
-// These types read as just the tag's name; other types keep a "Type" label
-const NAME_ONLY_TYPES = ['client', 'project', 'via'];
 const TAG_ORDER = ['client', 'kind', 'project', 'via'];
 // How long a task ticked off stays (shown done) so the animation plays before it leaves
 const LINGER_MS = 1200;
@@ -25,6 +23,21 @@ const tagRank = (tag) => {
   const i = TAG_ORDER.indexOf(isKind(tag) ? 'kind' : (tag.type_name || '').toLowerCase());
   return i === -1 ? TAG_ORDER.length : i;
 };
+
+/** The daily log line for a task: "Client: Title(subtask 1, subtask 2)", without the parts it doesn't have. */
+function dailyLogEntry(task) {
+  const clients = (task.tags || []).filter(t => (t.type_name || '').toLowerCase() === 'client').map(t => t.name);
+  const subtasks = (task.subtasks || []).map(s => s.title.trim()).filter(Boolean);
+  const title = subtasks.length ? `${task.title}(${subtasks.join(', ')})` : task.title;
+  return clients.length ? `${clients.join(', ')}: ${title}` : title;
+}
+
+async function addToDailyLog(task) {
+  try {
+    await api.createDailyLog({ date: todayStr(), text: dailyLogEntry(task) });
+    showSnackbar("Added to today's daily log");
+  } catch (err) { showToast(err.message); }
+}
 
 export function createTaskListPage({ view, group = null, nav }) {
   const root = view !== 'group';
@@ -228,6 +241,14 @@ export function createTaskListPage({ view, group = null, nav }) {
         meta(task, { showDate, showGroup }),
         task.subtasks?.length ? subtaskPreview(task.subtasks) : null,
       ),
+      // A done task can be logged any time, not only from the snackbar
+      done ? h('button', {
+        type: 'button',
+        className: 'icon-btn sm log-btn interactive',
+        'aria-label': `Add ${task.title} to today's daily log`,
+        title: "Add to today's daily log",
+        onClick: (e) => { e.stopPropagation(); addToDailyLog(task); },
+      }, icon('dailyLog')) : null,
     );
     return card;
   }
@@ -291,20 +312,10 @@ export function createTaskListPage({ view, group = null, nav }) {
 
   // Finishing a task offers to log it, without stopping the flow with a dialog
   function offerDailyLog(task) {
-    const clients = (task.tags || []).filter(t => (t.type_name || '').toLowerCase() === 'client').map(t => t.name);
-    const entry = clients.length ? `${clients.join(', ')} - ${task.title}` : task.title;
     showSnackbar('Done! Add it to your daily log?', {
       dismissible: true,
       duration: 6000,
-      action: {
-        label: 'Log it',
-        onClick: async () => {
-          try {
-            await api.createDailyLog({ date: todayStr(), text: entry });
-            showSnackbar("Added to today's daily log");
-          } catch (err) { showToast(err.message); }
-        },
-      },
+      action: { label: 'Log it', onClick: () => addToDailyLog(task) },
     });
   }
 
@@ -325,10 +336,8 @@ export function createTaskListPage({ view, group = null, nav }) {
       items.push(h('span', { className: 'meta-item' }, h('span', { className: 'group-dot', style: { background: task.group.color } }), task.group.name));
     }
     [...(task.tags || [])].sort((a, b) => tagRank(a) - tagRank(b)).forEach(tag => {
-      const nameOnly = isKind(tag) || NAME_ONLY_TYPES.includes((tag.type_name || '').toLowerCase());
       items.push(chip(tag.name, tag.color, {
         fallback: tag.type_color,
-        label: nameOnly ? null : (tag.type_name || 'Tag'),
         title: `Show only ${tag.name}`,
         onClick: () => { state.filters.tagId = tag.id; state.filters.tagName = tag.name; load(); },
       }));

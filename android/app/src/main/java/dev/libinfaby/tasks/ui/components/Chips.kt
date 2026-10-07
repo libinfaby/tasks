@@ -70,13 +70,12 @@ fun tonalColors(color: Color): ToggleColors {
     }
 }
 
-/** Tag chip: 24dp, 8dp corners, tonal, no outline. [label] prefixes the tag type where it helps. */
+/** Tag chip: 24dp, 8dp corners, tonal, no outline. Just the tag's name, never its type. */
 @Composable
 fun Chip(
     text: String,
     colors: ToggleColors,
     modifier: Modifier = Modifier,
-    label: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val shape = RoundedCornerShape(8.dp)
@@ -88,7 +87,6 @@ fun Chip(
         modifier = modifier.clip(shape).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
     ) {
         Row(Modifier.height(24.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (label != null) Text("$label ", style = MaterialTheme.typography.labelSmall, color = colors.content.copy(alpha = 0.7f), maxLines = 1)
             Text(text, style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
     }

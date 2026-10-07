@@ -112,12 +112,10 @@ fun TaskListScreen(
 
     // Finishing a task offers to log it, without stopping the flow with a dialog
     val onCompleted: (TaskDto) -> Unit = { done ->
-        val clients = done.tags.filter { it.typeName.equals("client", true) }.map { it.name }
-        val entry = if (clients.isEmpty()) done.title else "${clients.joinToString(", ")} - ${done.title}"
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
             val result = snackbar.showSnackbar("Done! Add it to your daily log?", actionLabel = "Log it", withDismissAction = true, duration = SnackbarDuration.Short)
-            if (result == SnackbarResult.ActionPerformed) vm.addToDaily(entry)
+            if (result == SnackbarResult.ActionPerformed) vm.addToDaily(done)
         }
     }
 
@@ -210,6 +208,7 @@ private fun LazyListScope.sections(
                     onToggle = { vm.toggle(task, onCompleted) },
                     onToggleSubtask = { vm.toggleSubtask(it.id) },
                     onTagClick = { vm.setTagFilter(it.id, it.name) },
+                    onLogDaily = { vm.addToDaily(task) },
                     modifier = Modifier.padding(bottom = 6.dp).animateItem(),
                 )
             }

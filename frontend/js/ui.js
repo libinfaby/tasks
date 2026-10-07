@@ -166,8 +166,8 @@ export function toggleGroup(options, selected, onSelect, { tall = false } = {}) 
   return group;
 }
 
-/** Tag chip in the tag's tonal colours; [label] prefixes the tag type. */
-export function chip(text, color, { fallback = null, label = null, onClick = null, title = null, large = false } = {}) {
+/** Tag chip in the tag's tonal colours: just the tag's name, never its type. */
+export function chip(text, color, { fallback = null, onClick = null, title = null, large = false } = {}) {
   const t = tonal(color, fallback);
   return h(onClick ? 'button' : 'span', {
     type: onClick ? 'button' : null,
@@ -175,7 +175,7 @@ export function chip(text, color, { fallback = null, label = null, onClick = nul
     style: t.style,
     title,
     onClick: onClick ? (e) => { e.stopPropagation(); onClick(e); } : null,
-  }, label ? h('span', { className: 'chip-label' }, label) : null, text);
+  }, text);
 }
 
 /** Outlined text field with a notched label. Returns { el, input }. */

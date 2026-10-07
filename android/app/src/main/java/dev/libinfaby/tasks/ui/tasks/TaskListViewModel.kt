@@ -56,6 +56,14 @@ data class TaskListState(
 
 private data class Query(val view: TaskView, val filters: Filters, val search: Search)
 
+/** The daily log line for a task: "Client: Title(subtask 1, subtask 2)", without the parts it doesn't have. */
+fun TaskDto.dailyLogEntry(): String {
+    val clients = tags.filter { it.typeName.equals("client", true) }.map { it.name }
+    val subs = subtasks.map { it.title.trim() }.filter { it.isNotEmpty() }
+    val text = if (subs.isEmpty()) title else "$title(${subs.joinToString(", ")})"
+    return if (clients.isEmpty()) text else "${clients.joinToString(", ")}: $text"
+}
+
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class TaskListViewModel @Inject constructor(private val repo: TasksRepository) : ViewModel() {
@@ -220,8 +228,8 @@ class TaskListViewModel @Inject constructor(private val repo: TasksRepository) :
         runCatching { repo.toggleSubtask(id) }.onSuccess { retry() }.onFailure { _messages.value = it.userMessage() }
     }
 
-    fun addToDaily(text: String) = viewModelScope.launch {
-        runCatching { repo.addDailyLog(Dates.today(), text) }
+    fun addToDaily(task: TaskDto) = viewModelScope.launch {
+        runCatching { repo.addDailyLog(Dates.today(), task.dailyLogEntry()) }
             .onSuccess { _messages.value = "Added to today's daily log" }
             .onFailure { _messages.value = it.userMessage() }
     }
