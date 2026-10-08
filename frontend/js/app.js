@@ -242,7 +242,10 @@ class App {
         return item(g.name, null, { name: 'group', group: g }, {
           active: dest.name === 'group' && dest.group?.id === g.id,
           lead: h('span', { className: `group-tile tile-tonal ${t.className}`, style: t.style }, icon('groupFilled', { size: 18 })),
-          trailing: h('span', { className: 'count' }, String(g.active_task_count || 0)),
+          trailing: [
+            store.isHidden(g.id) ? icon('visibilityOff', { size: 18, className: 'muted' }) : null,
+            h('span', { className: 'count' }, String(g.active_task_count || 0)),
+          ],
         });
       }),
       h('div', { className: 'drawer-label title-small muted' }, 'Manage'),
@@ -266,6 +269,7 @@ class App {
             const t = tonal(g.color);
             return citem(listRow({
               title: g.name,
+              supporting: store.isHidden(g.id) ? 'Hidden from All tasks, Today and Upcoming' : null,
               icon: 'groupFilled',
               tile: `group-shape tile-tonal ${t.className}`,
               tileStyle: t.style,

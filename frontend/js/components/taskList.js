@@ -92,6 +92,8 @@ export function createTaskListPage({ view, group = null, nav }) {
     try {
       let tasks = (await api.getTasks(query())).tasks || [];
       if (state.filters.urgent) tasks = tasks.filter(t => t.priority > 0);
+      // Hidden groups (Settings) only show inside their own group
+      if (root) tasks = tasks.filter(t => !store.isHidden(t.group_id));
       if (seq !== loadSeq) return;
       // A task still lingering after being ticked off keeps its place, shown done
       const lingering = state.tasks.filter(t => state.held.has(t.id) && !tasks.some(n => n.id === t.id));

@@ -115,6 +115,11 @@ class AppViewModel @Inject constructor(
             .onFailure { Toast.makeText(context, it.userMessage(), Toast.LENGTH_SHORT).show() }
     }
 
+    fun setGroupHidden(id: Long, hidden: Boolean) = viewModelScope.launch {
+        runCatching { repo.setGroupHidden(id, hidden) }
+            .onFailure { Toast.makeText(context, it.userMessage(), Toast.LENGTH_SHORT).show() }
+    }
+
     fun openNewTask() { editor.value = EditorRequest(null) }
 
     /** Opens a task by id (from a notification or the widget), from the cache. */

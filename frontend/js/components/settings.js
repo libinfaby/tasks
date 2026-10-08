@@ -1,5 +1,5 @@
 // ============================================================
-// Tasks — Settings: theme, default group, notifications, sign out
+// Tasks — Settings: theme, default and hidden groups, notifications, sign out
 // ============================================================
 
 import { api } from '../api.js';
@@ -40,7 +40,7 @@ export function createSettingsPage({ nav }) {
   const el = h('div', { className: 'page' }, h('div', { className: 'page-scroll' }, topBar('Settings', nav.back), inner));
 
   /** The group every new task starts in, shared with the Android app. A deleted group reads as none. */
-  function renderDefaultGroup() {
+  function defaultGroupRow() {
     const current = store.groups.find(g => g.id === store.defaultGroupId());
     const t = current ? tonal(current.color) : null;
     const row = citem(listRow({
@@ -51,18 +51,61 @@ export function createSettingsPage({ nav }) {
       tileStyle: t?.style,
       trailing: [h('span', { className: 'label-large' }, current?.name || 'None'), icon('dropDown')],
     }), {
-      className: 'solo',
       onClick: () => openMenu(row, [
         { label: 'No group', icon: 'block', checked: !current, onClick: () => pick(null) },
         ...store.groups.map(g => ({
           label: g.name,
-          iconEl: h('span', { className: 'group-dot', style: { background: g.color, width: '12px', height: '12px' } }),
+          iconEl: groupDot(g),
           checked: g.id === current?.id,
+          // New tasks would vanish from the view they were added in
+          disabled: store.isHidden(g.id),
+          supporting: store.isHidden(g.id) ? 'Hidden, so it can’t be the default' : null,
           onClick: () => pick(g.id),
         })),
       ]),
     });
-    setChildren(groupSlot, row);
+    return row;
+  }
+
+  /** Groups whose tasks only show inside the group, not in All tasks, Today or Upcoming. */
+  function hiddenGroupsRow() {
+    const hidden = store.groups.filter(g => store.isHidden(g.id));
+    const row = citem(listRow({
+      title: 'Hidden groups',
+      supporting: hidden.length
+        ? `${hidden.map(g => g.name).join(', ')} only show${hidden.length === 1 ? 's' : ''} inside ${hidden.length === 1 ? 'its' : 'their'} group`
+        : 'Every group’s tasks show in All tasks, Today and Upcoming',
+      icon: 'visibilityOff',
+      tile: 'primary',
+      trailing: [h('span', { className: 'label-large' }, hidden.length ? String(hidden.length) : 'None'), icon('dropDown')],
+    }), { onClick: () => openHiddenMenu(row) });
+    return row;
+  }
+
+  function openHiddenMenu(row) {
+    if (!store.groups.length) { showToast('No groups yet'); return; }
+    openMenu(row, store.groups.map(g => {
+      const isDefault = g.id === store.defaultGroupId();
+      return {
+        label: g.name,
+        iconEl: groupDot(g),
+        checked: store.isHidden(g.id),
+        disabled: isDefault,
+        supporting: isDefault ? 'Default group, so it can’t be hidden' : null,
+        // Stay open so several groups can be ticked in a row
+        onClick: async () => {
+          try { await store.setGroupHidden(g.id, !store.isHidden(g.id)); } catch (err) { showToast(err.message); }
+          const fresh = groupSlot.lastElementChild;
+          if (fresh?.isConnected) openHiddenMenu(fresh);
+        },
+      };
+    }));
+  }
+
+  const groupDot = (g) => h('span', { className: 'group-dot', style: { background: g.color, width: '12px', height: '12px' } });
+
+  function renderGroups() {
+    setChildren(groupSlot, defaultGroupRow(), hiddenGroupsRow());
   }
 
   async function pick(id) {
@@ -91,9 +134,9 @@ export function createSettingsPage({ nav }) {
     }), { className: 'solo' }));
   }
 
-  renderDefaultGroup();
+  renderGroups();
   renderNotifications();
-  const off = store.on(renderDefaultGroup);
+  const off = store.on(renderGroups);
   store.loadSettings();
   return { el, destroy: off };
 }

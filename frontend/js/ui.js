@@ -209,10 +209,11 @@ export function openMenu(anchor, items) {
       type: 'button',
       className: 'menu-item interactive',
       role: 'menuitem',
+      disabled: !!item.disabled,
       onClick: () => { closeMenu(); item.onClick(); },
     },
       item.iconEl || item.icon ? h('span', { className: 'lead' }, item.iconEl || icon(item.icon, { size: 20 })) : null,
-      h('span', { className: 'text' }, item.label),
+      h('span', { className: 'text' }, item.label, item.supporting ? h('span', { className: 'supporting' }, item.supporting) : null),
       item.checked ? h('span', { className: 'trail' }, icon('check', { size: 20 })) : null,
     )),
   );

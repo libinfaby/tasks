@@ -12,7 +12,7 @@ export const store = {
   groups: [],
   tagTypes: [],
   /** Shared with the Android app (GET/PUT /settings). */
-  settings: { default_group_id: null },
+  settings: { default_group_id: null, hidden_group_ids: [] },
 
   on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
   emit() { listeners.forEach(fn => fn()); },
@@ -28,8 +28,8 @@ export const store = {
   },
 
   async loadSettings() {
-    // An older API without /settings simply has no default group
-    try { this.settings = { default_group_id: null, ...(await api.getSettings()).settings }; } catch { /* keep defaults */ }
+    // An older API without /settings simply has no default group and nothing hidden
+    try { this.settings = { default_group_id: null, hidden_group_ids: [], ...(await api.getSettings()).settings }; } catch { /* keep defaults */ }
     this.emit();
   },
 
@@ -41,6 +41,20 @@ export const store = {
     await api.updateSettings({ default_group_id: id });
     this.settings = { ...this.settings, default_group_id: id };
     this.emit();
+  },
+
+  async setGroupHidden(id, hidden) {
+    // A group deleted since settings loaded would be refused, so only send ones that still exist
+    const ids = this.settings.hidden_group_ids.filter(g => g !== id && this.groups.some(x => x.id === g));
+    if (hidden) ids.push(id);
+    await api.updateSettings({ hidden_group_ids: ids });
+    this.settings = { ...this.settings, hidden_group_ids: ids };
+    this.emit();
+  },
+
+  /** Whether a group's tasks stay out of All tasks, Today and Upcoming (they still show in the group). */
+  isHidden(groupId) {
+    return groupId != null && this.settings.hidden_group_ids.includes(groupId);
   },
 
   /** The default group if it still exists. */

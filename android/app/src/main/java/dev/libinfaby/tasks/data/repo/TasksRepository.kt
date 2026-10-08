@@ -8,7 +8,8 @@ import dev.libinfaby.tasks.data.api.DailyLogWrite
 import dev.libinfaby.tasks.data.api.GroupDto
 import dev.libinfaby.tasks.data.api.GroupWrite
 import dev.libinfaby.tasks.data.api.LoginRequest
-import dev.libinfaby.tasks.data.api.SettingsDto
+import dev.libinfaby.tasks.data.api.DefaultGroupWrite
+import dev.libinfaby.tasks.data.api.HiddenGroupsWrite
 import dev.libinfaby.tasks.data.api.SubtaskWrite
 import dev.libinfaby.tasks.data.api.TagTypeDto
 import dev.libinfaby.tasks.data.api.TagTypeWrite
@@ -26,6 +27,8 @@ import dev.libinfaby.tasks.reminders.ReminderScheduler
 import dev.libinfaby.tasks.widget.TasksWidget
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -121,13 +124,29 @@ class TasksRepository @Inject constructor(
         blobDao.put(BlobEntity(KEY_GROUPS, tasksJson.encodeToString(ListSerializer(GroupDto.serializer()), groups)))
         // Shared with the web app; kept locally so new tasks get it offline. An older server without
         // /settings leaves the local value alone.
-        runCatching { api.settings().settings }.onSuccess { settings.setDefaultGroup(it.defaultGroupId) }
+        runCatching { api.settings().settings }.onSuccess {
+            settings.setDefaultGroup(it.defaultGroupId)
+            settings.setHiddenGroups(it.hiddenGroupIds.toSet())
+        }
     }
+
+    /** Groups whose tasks stay out of All tasks, Today and Upcoming. */
+    val hiddenGroupIds: Flow<Set<Long>> = settings.settings.map { it.hiddenGroupIds }.distinctUntilChanged()
 
     /** Saves the default group on the server (so the web app uses it too), then locally. */
     suspend fun setDefaultGroup(id: Long?) {
-        api.updateSettings(SettingsDto(id))
+        api.updateDefaultGroup(DefaultGroupWrite(id))
         settings.setDefaultGroup(id)
+    }
+
+    /** Hides or shows a group's tasks in the main views, on the server (for the web app too), then locally. */
+    suspend fun setGroupHidden(id: Long, hidden: Boolean) {
+        // A group deleted since the last sync would be refused, so only send ones that still exist
+        val known = groups.first().map { it.id }.toSet()
+        val current = settings.current().hiddenGroupIds.filter { it in known }.toSet()
+        val ids = if (hidden) current + id else current - id
+        api.updateHiddenGroups(HiddenGroupsWrite(ids.toList()))
+        settings.setHiddenGroups(ids)
     }
 
     /** Server-side query for views the cache doesn't hold (completed tasks, search). */

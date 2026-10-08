@@ -71,6 +71,7 @@ fun SettingsScreen(
     onWallpaperColors: (Boolean) -> Unit,
     groups: List<GroupDto>,
     onDefaultGroup: (Long?) -> Unit,
+    onGroupHidden: (Long, Boolean) -> Unit,
     onSignOut: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -119,7 +120,10 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(28.dp))
             FieldLabel("Tasks", Modifier.padding(start = 4.dp))
-            DefaultGroupItem(groups, settings.defaultGroupId, onDefaultGroup)
+            ConnectedColumn {
+                DefaultGroupItem(groups, settings.defaultGroupId, settings.hiddenGroupIds, onDefaultGroup)
+                HiddenGroupsItem(groups, settings.hiddenGroupIds, settings.defaultGroupId, onGroupHidden)
+            }
 
             Spacer(Modifier.height(28.dp))
             FieldLabel("Reminders", Modifier.padding(start = 4.dp))
@@ -174,12 +178,12 @@ fun SettingsScreen(
 
 /** The group every new task starts in, picked from a menu. A deleted group reads as none. */
 @Composable
-private fun DefaultGroupItem(groups: List<GroupDto>, selectedId: Long?, onPick: (Long?) -> Unit) {
+private fun DefaultGroupItem(groups: List<GroupDto>, selectedId: Long?, hiddenIds: Set<Long>, onPick: (Long?) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val current = groups.firstOrNull { it.id == selectedId }
     val tint = current?.let { tonalColors(parseHex(it.color)) }
     Box {
-        ConnectedItem(0, 1, onClick = { open = true }) {
+        ConnectedItem(0, 2, onClick = { open = true }) {
             ListRow(
                 "Default group",
                 supporting = current?.let { "New tasks start in ${it.name}" } ?: "New tasks start without a group",
@@ -200,14 +204,65 @@ private fun DefaultGroupItem(groups: List<GroupDto>, selectedId: Long?, onPick: 
                 onClick = { onPick(null); open = false },
             )
             groups.forEach { g ->
+                // New tasks would vanish from the view they were added in
+                val hidden = g.id in hiddenIds
                 DropdownMenuItem(
-                    text = { Text(g.name) },
+                    text = { MenuText(g.name, if (hidden) "Hidden, so it can't be the default" else null) },
                     leadingIcon = { Icon(TasksIcons.GroupFilled, null, tint = tonalColors(parseHex(g.color)).content) },
                     trailingIcon = if (g.id == current?.id) ({ Icon(TasksIcons.Check, null) }) else null,
+                    enabled = !hidden,
                     onClick = { onPick(g.id); open = false },
                 )
             }
         }
+    }
+}
+
+/** Groups whose tasks only show inside the group, ticked in a menu that stays open. The default group can't be hidden. */
+@Composable
+private fun HiddenGroupsItem(groups: List<GroupDto>, hiddenIds: Set<Long>, defaultId: Long?, onToggle: (Long, Boolean) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val hidden = groups.filter { it.id in hiddenIds }
+    Box {
+        ConnectedItem(1, 2, onClick = { if (groups.isNotEmpty()) open = true }) {
+            ListRow(
+                "Hidden groups",
+                supporting = when (hidden.size) {
+                    0 -> "Every group's tasks show in All tasks, Today and Upcoming"
+                    1 -> "${hidden[0].name} only shows inside its group"
+                    else -> "${hidden.joinToString { it.name }} only show inside their group"
+                },
+                icon = TasksIcons.VisibilityOff,
+                iconContainer = MaterialTheme.colorScheme.primaryContainer,
+                iconContent = MaterialTheme.colorScheme.onPrimaryContainer,
+            ) {
+                Text(if (hidden.isEmpty()) "None" else "${hidden.size}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(TasksIcons.DropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = RoundedCornerShape(16.dp), offset = DpOffset(16.dp, 0.dp)) {
+            groups.forEach { g ->
+                val isDefault = g.id == defaultId
+                val isHidden = g.id in hiddenIds
+                DropdownMenuItem(
+                    text = { MenuText(g.name, if (isDefault) "Default group, so it can't be hidden" else null) },
+                    leadingIcon = { Icon(TasksIcons.GroupFilled, null, tint = tonalColors(parseHex(g.color)).content) },
+                    trailingIcon = if (isHidden) ({ Icon(TasksIcons.Check, null) }) else null,
+                    enabled = !isDefault,
+                    onClick = { onToggle(g.id, !isHidden) },
+                )
+            }
+        }
+    }
+}
+
+/** A menu item's label, with a smaller line under it when [supporting] is given. */
+@Composable
+private fun MenuText(text: String, supporting: String?) {
+    if (supporting == null) Text(text)
+    else Column {
+        Text(text)
+        Text(supporting, style = MaterialTheme.typography.bodySmall)
     }
 }
 

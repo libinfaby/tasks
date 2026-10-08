@@ -138,7 +138,7 @@ fun AppRoot(vm: AppViewModel) {
                         report = d.report,
                         onReport = { vm.go(Destination.Daily(it)) },
                     )
-                    Destination.Menu -> MenuScreen(groups, counts, onBack = { vm.back() }, onGo = vm::go)
+                    Destination.Menu -> MenuScreen(groups, counts, s.hiddenGroupIds, onBack = { vm.back() }, onGo = vm::go)
                     Destination.Tags -> TagsScreen(hiltViewModel<ManageViewModel>(), onBack = { vm.back() })
                     Destination.Groups -> GroupsScreen(hiltViewModel<ManageViewModel>(), onBack = { vm.back() })
                     Destination.Settings -> SettingsScreen(
@@ -147,6 +147,7 @@ fun AppRoot(vm: AppViewModel) {
                         onWallpaperColors = vm::setWallpaperColors,
                         groups = groups,
                         onDefaultGroup = vm::setDefaultGroup,
+                        onGroupHidden = vm::setGroupHidden,
                         onSignOut = { vm.signOut() },
                         onBack = { vm.back() },
                     )
@@ -212,7 +213,7 @@ private val TaskView.key: String
 
 /** Everything that used to live in the drawer, as a full page: groups to jump into, then Tags, Groups and Settings. */
 @Composable
-private fun MenuScreen(groups: List<GroupDto>, counts: Map<Long, Int>, onBack: () -> Unit, onGo: (Destination) -> Unit) {
+private fun MenuScreen(groups: List<GroupDto>, counts: Map<Long, Int>, hiddenIds: Set<Long>, onBack: () -> Unit, onGo: (Destination) -> Unit) {
     Scaffold(containerColor = MaterialTheme.colorScheme.surface, topBar = { BackTopBar("", onBack) }) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).verticalScroll(rememberScrollState())
@@ -231,6 +232,7 @@ private fun MenuScreen(groups: List<GroupDto>, counts: Map<Long, Int>, onBack: (
                         ConnectedItem(i, groups.size, onClick = { onGo(Destination.Tasks(TaskView.Group(g.id, g.name))) }) {
                             ListRow(
                                 title = g.name,
+                                supporting = if (g.id in hiddenIds) "Hidden from All tasks, Today and Upcoming" else null,
                                 icon = TasksIcons.GroupFilled,
                                 iconContainer = tint.container,
                                 iconContent = tint.content,
@@ -247,7 +249,7 @@ private fun MenuScreen(groups: List<GroupDto>, counts: Map<Long, Int>, onBack: (
             ConnectedColumn {
                 ConnectedItem(0, 3, onClick = { onGo(Destination.Tags) }) { ListRow("Tags", supporting = "Tag types and their colours", icon = TasksIcons.TagFilled) }
                 ConnectedItem(1, 3, onClick = { onGo(Destination.Groups) }) { ListRow("Groups", supporting = "Create, rename and recolour", icon = TasksIcons.GroupFilled) }
-                ConnectedItem(2, 3, onClick = { onGo(Destination.Settings) }) { ListRow("Settings", supporting = "Theme, default group, reminders and sync", icon = TasksIcons.Settings) }
+                ConnectedItem(2, 3, onClick = { onGo(Destination.Settings) }) { ListRow("Settings", supporting = "Theme, groups, reminders and sync", icon = TasksIcons.Settings) }
             }
         }
     }

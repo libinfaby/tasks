@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dev.libinfaby.tasks.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -31,6 +32,8 @@ data class Settings(
     val wallpaperColors: Boolean = false,
     /** Group new tasks start in; null for none. Mirrors the server's shared setting. */
     val defaultGroupId: Long? = null,
+    /** Groups kept out of All tasks, Today and Upcoming. Mirrors the server's shared setting. */
+    val hiddenGroupIds: Set<Long> = emptySet(),
     val lastSyncAt: Long = 0,
 ) {
     val signedIn get() = token != null
@@ -46,6 +49,7 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
         val theme = stringPreferencesKey("theme")
         val wallpaperColors = booleanPreferencesKey("wallpaper_colors")
         val defaultGroup = longPreferencesKey("default_group_id")
+        val hiddenGroups = stringSetPreferencesKey("hidden_group_ids")
         val lastSync = longPreferencesKey("last_sync_at")
     }
 
@@ -56,6 +60,7 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
             theme = p[Keys.theme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM,
             wallpaperColors = p[Keys.wallpaperColors] ?: false,
             defaultGroupId = p[Keys.defaultGroup],
+            hiddenGroupIds = p[Keys.hiddenGroups]?.mapNotNull { it.toLongOrNull() }?.toSet() ?: emptySet(),
             lastSyncAt = p[Keys.lastSync] ?: 0,
         )
     }
@@ -74,6 +79,10 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
 
     suspend fun setDefaultGroup(id: Long?) = context.dataStore.edit {
         if (id == null) it.remove(Keys.defaultGroup) else it[Keys.defaultGroup] = id
+    }
+
+    suspend fun setHiddenGroups(ids: Set<Long>) = context.dataStore.edit {
+        if (ids.isEmpty()) it.remove(Keys.hiddenGroups) else it[Keys.hiddenGroups] = ids.map(Long::toString).toSet()
     }
 
     suspend fun setLastSync(at: Long) = context.dataStore.edit { it[Keys.lastSync] = at }

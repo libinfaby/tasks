@@ -143,6 +143,13 @@ data class GroupWrite(
 @Serializable data class DailyLogWrite(val date: String, val text: String)
 
 /** Preferences shared with the web app (GET/PUT /settings). */
-@Serializable data class SettingsDto(@SerialName("default_group_id") val defaultGroupId: Long? = null)
+@Serializable data class SettingsDto(
+    @SerialName("default_group_id") val defaultGroupId: Long? = null,
+    /** Groups whose tasks only show inside the group, not in All tasks, Today or Upcoming. */
+    @SerialName("hidden_group_ids") val hiddenGroupIds: List<Long> = emptyList(),
+)
+// PUT /settings changes only the keys it's sent, so each setting has its own body
+@Serializable data class DefaultGroupWrite(@SerialName("default_group_id") val defaultGroupId: Long?)
+@Serializable data class HiddenGroupsWrite(@SerialName("hidden_group_ids") val hiddenGroupIds: List<Long>)
 @Serializable data class SettingsResponse(val settings: SettingsDto = SettingsDto())
 @Serializable data class DailyLogUpdate(val text: String)

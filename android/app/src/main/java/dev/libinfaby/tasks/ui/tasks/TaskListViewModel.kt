@@ -54,7 +54,8 @@ data class TaskListState(
     val error: String? = null,
 )
 
-private data class Query(val view: TaskView, val filters: Filters, val search: Search)
+/** [hidden]: groups (Settings) whose tasks only show inside the group. */
+private data class Query(val view: TaskView, val filters: Filters, val search: Search, val hidden: Set<Long>)
 
 /** The daily log line for a task: "Client: Title(subtask 1, subtask 2)", without the parts it doesn't have. */
 fun TaskDto.dailyLogEntry(): String {
@@ -81,7 +82,7 @@ class TaskListViewModel @Inject constructor(private val repo: TasksRepository) :
 
     val tagTypes: StateFlow<List<TagTypeDto>> = repo.tagTypes.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val state: StateFlow<TaskListState> = combine(view, filters, search.debounce(300), refreshTick) { v, f, s, _ -> Query(v, f, s) }
+    val state: StateFlow<TaskListState> = combine(view, filters, search.debounce(300), repo.hiddenGroupIds, refreshTick) { v, f, s, h, _ -> Query(v, f, s, h) }
         .flatMapLatest { q ->
             if (q.needsServer()) {
                 // Completed tasks and searches are queried live, like the web app; re-run when the cache changes
@@ -90,7 +91,7 @@ class TaskListViewModel @Inject constructor(private val repo: TasksRepository) :
                         emit(TaskListState(loading = true))
                         emit(
                             runCatching { repo.query(q.serverFilters()) }
-                                .map { tasks -> buildState(q, tasks, emptySet()) }
+                                .map { tasks -> buildState(q, q.withoutHidden(tasks), emptySet()) }
                                 .getOrElse { TaskListState(error = it.userMessage()) }
                         )
                     }
@@ -100,7 +101,7 @@ class TaskListViewModel @Inject constructor(private val repo: TasksRepository) :
                     // DAO order: priority, then newest first
                     val merged = (open.filterNot { it.id in held } + held.values)
                         .sortedWith(compareByDescending<TaskDto> { it.priority }.thenByDescending { it.id })
-                    buildState(q, q.localFilter(merged), held.keys)
+                    buildState(q, q.withoutHidden(q.localFilter(merged)), held.keys)
                 }
             }
         }
@@ -158,6 +159,10 @@ class TaskListViewModel @Inject constructor(private val repo: TasksRepository) :
                 (filters.tagId == null || t.tags.any { it.id == filters.tagId })
         }
     }
+
+    /** All tasks, Today and Upcoming leave out hidden groups; a group's own view shows everything in it. */
+    private fun Query.withoutHidden(tasks: List<TaskDto>): List<TaskDto> =
+        if (view is TaskView.Group || hidden.isEmpty()) tasks else tasks.filterNot { it.groupId in hidden }
 
     /**
      * Today: Overdue, then Urgent / Tasks / one section per group (as "All" splits, like the web list).
