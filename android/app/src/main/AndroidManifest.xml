@@ -6,13 +6,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Exact reminders. USE_EXACT_ALARM is granted without a prompt (Android 13+); this app is sideloaded,
-         so Play's restriction on it doesn't apply. Android 12 falls back to SCHEDULE_EXACT_ALARM. -->
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-    <uses-permission
-        android:name="android.permission.SCHEDULE_EXACT_ALARM"
-        android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Exact reminders. Play only allows USE_EXACT_ALARM for alarm-clock and calendar apps, so this asks for
+         SCHEDULE_EXACT_ALARM, which the user turns on from Settings → Reminders → Exact timing. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application
         android:name=".TasksApp"

@@ -134,8 +134,9 @@ fun SettingsScreen(
                 StatusItem(1, TasksIcons.Timer, "Exact timing", if (canExact) "Reminders fire on the minute" else "Reminders may be a few minutes late", canExact, "Open") {
                     context.startActivity(Intent(AndroidSettings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}")))
                 }
-                StatusItem(2, TasksIcons.Battery, "Battery", if (unrestricted) "Unrestricted, so background sync is reliable" else "Optimised, so sync may be delayed", unrestricted, "Allow") {
-                    context.startActivity(Intent(AndroidSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}")))
+                StatusItem(2, TasksIcons.Battery, "Battery", if (unrestricted) "Unrestricted, so background sync is reliable" else "Optimised, so sync may be delayed", unrestricted, "Open") {
+                    // Play restricts the direct prompt (REQUEST_IGNORE_BATTERY_OPTIMIZATIONS), so open the system list instead
+                    context.startActivity(Intent(AndroidSettings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
                 }
             }
             Text(

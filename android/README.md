@@ -12,6 +12,7 @@ export JAVA_HOME=/snap/android-studio/current/jbr
 ./gradlew :app:testDebugUnitTest      # recurrence rules (same cases as worker/test)
 ./gradlew :app:assembleDebug          # app-debug.apk, id dev.libinfaby.tasks.debug
 ./gradlew :app:assembleRelease        # R8-optimised; signed with keystore.properties if present, else the debug key
+./gradlew :app:bundleRelease          # app-release.aab for Google Play; needs keystore.properties (Play rejects the debug key)
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
@@ -41,5 +42,7 @@ For a stable release signature, add `keystore.properties` (git-ignored) with `st
   A reminder set less than ~15 minutes ahead may miss the phone; the web push still covers it.
 - **Repeating reminders**: when one fires, the phone arms the next occurrence itself; the worker's cron advances the
   server copy too, and both compute the same time.
-- Uses `USE_EXACT_ALARM` (sideloaded app, so Play's restriction doesn't apply). If notifications are also enabled in
+- Uses `SCHEDULE_EXACT_ALARM` (Play only allows `USE_EXACT_ALARM` for alarm clocks and calendars), so turn on
+  Settings → Reminders → Exact timing once after installing; until then reminders may be a few minutes late.
+  Before each Play upload, bump `versionCode` in `app/build.gradle.kts`. If notifications are also enabled in
   the phone's browser, turn those off to avoid duplicates.
